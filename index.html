@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🐼 汉字笔顺学堂</title>
+  <!-- Hanzi Writer — 权威笔顺数据库 -->
+  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+  <style>
+    /* ===== 全局重置 & 基础样式 ===== */
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg-sky: #E8F6FF;
+      --yellow: #FFD93D;
+      --orange: #FF8C42;
+      --red: #FF5A5F;
+      --green: #6BCB77;
+      --blue: #4D96FF;
+      --purple: #C77DFF;
+      --pink: #FF85A1;
+      --dark: #3A3A5C;
+      --mid: #7B7B9A;
+      --light: #B8B8D0;
+      --white: #FFFFFF;
+      --card-shadow: 0 8px 24px rgba(77,150,255,0.15);
+      --bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      background: var(--bg-sky);
+      color: var(--dark);
+      overflow-x: hidden;
+    }
+
+    /* 动态云朵背景 */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background:
+        radial-gradient(ellipse 200px 80px at 10% 15%, rgba(255,255,255,0.8) 0%, transparent 70%),
+        radial-gradient(ellipse 160px 60px at 80% 8%, rgba(255,255,255,0.7) 0%, transparent 70%),
+        radial-gradient(ellipse 120px 50px at 50% 5%, rgba(255,255,255,0.6) 0%, transparent 70%),
+        linear-gradient(180deg, #C8E6FF 0%, #E8F6FF 40%, #FFF5E6 100%);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ===== 顶部导航 ===== */
+    .top-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: linear-gradient(135deg, #FF85A1 0%, #FF8C42 50%, #FFD93D 100%);
+      padding: 12px 16px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 16px rgba(255,140,66,0.35);
+      border-radius: 0 0 24px 24px;
+    }
+    .nav-title {
+      font-size: 22px;
+      font-weight: 900;
+      color: white;
+      text-shadow: 2px 3px 0px rgba(0,0,0,0.15);
+      letter-spacing: 1px;
+    }
+    .nav-title span { font-size: 26px; }
+    .stars-display {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255,255,255,0.3);
+      border-radius: 20px;
+      padding: 4px 12px;
+    }
+    .stars-display .star-icon { font-size: 18px; }
+    .stars-display .star-count {
+      font-size: 18px;
+      font-weight: 900;
+      color: white;
+      text-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+    }
+
+    /* ===== 进度条 ===== */
+    .progress-section {
+      position: relative;
+      z-index: 1;
+      padding: 16px 16px 8px;
+    }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--mid);
+      margin-bottom: 6px;
+    }
+    .progress-bar {
+      height: 14px;
+      background: rgba(255,255,255,0.8);
+      border-radius: 7px;
+      overflow: hidden;
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6BCB77, #4D96FF);
+      border-radius: 7px;
+      transition: width 0.6s var(--bounce);
+      position: relative;
+      overflow: hidden;
+    }
+    .progress-fill::after {
+      content: '';
+      position: absolute;
+      top: 2px; left: 0;
+      width: 50%; height: 4px;
+      background: rgba(255,255,255,0.5);
+      border-radius: 2px;
+    }
+
+    /* ===== 分类选择器 ===== */
+    .category-section {
+      position: relative; z-index: 1;
+      padding: 8px 16px 4px;
+    }
+    .section-title {
+      font-size: 15px; font-weight: 800;
+      color: var(--dark);
+      margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .category-scroll {
+      display: flex; gap: 10px;
+      overflow-x: auto; padding-bottom: 8px;
+      scrollbar-width: none;
+    }
+    .category-scroll::-webkit-scrollbar { display: none; }
+    .cat-btn {
+      flex-shrink: 0;
+      padding: 8px 18px;
+      border-radius: 20px;
+      border: 2px solid transparent;
+      font-size: 14px; font-weight: 700;
+      cursor: pointer;
+      transition: all 0.25s var(--bounce);
+      white-space: nowrap;
+    }
+    .cat-btn.active {
+      background: var(--blue); color: white;
+      border-color: var(--blue);
+      box-shadow: 0 4px 12px rgba(77,150,255,0.4);
+      transform: translateY(-2px);
+    }
+    .cat-btn:not(.active) {
+      background: white; color: var(--dark);
+      border-color: #E0E0F0;
+    }
+    .cat-btn:active { transform: scale(0.93); }
+
+    /* ===== 汉字网格 ===== */
+    .hanzi-grid-section {
+      position: relative; z-index: 1;
+      padding: 8px 16px 12px;
+    }
+    .hanzi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .hanzi-card {
+      aspect-ratio: 1;
+      background: white;
+      border-radius: 20px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--card-shadow);
+      border: 3px solid transparent;
+      transition: all 0.25s var(--bounce);
+      position: relative; overflow: hidden;
+    }
+    .hanzi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      border-radius: 20px 20px 0 0;
+    }
+    .hanzi-card.color-1::before { background: #FF85A1; }
+    .hanzi-card.color-2::before { background: #FFD93D; }
+    .hanzi-card.color-3::before { background: #6BCB77; }
+    .hanzi-card.color-4::before { background: #4D96FF; }
+    .hanzi-card.color-5::before { background: #C77DFF; }
+    .hanzi-card.color-6::before { background: #FF8C42; }
+    .hanzi-card.learned {
+      border-color: #6BCB77;
+      background: linear-gradient(135deg, #F0FFF4, white);
+    }
+    .hanzi-card:active { transform: scale(0.88); }
+    .hanzi-card:hover { transform: translateY(-4px) scale(1.04); box-shadow: 0 12px 32px rgba(77,150,255,0.25); }
+    .card-char { font-size: 30px; font-weight: 900; color: var(--dark); line-height: 1; }
+    .card-pinyin { font-size: 11px; color: var(--mid); margin-top: 3px; font-style: italic; }
+    .card-badge { position: absolute; top: 6px; right: 6px; font-size: 14px; line-height: 1; }
+
+    /* ===== 学习弹层 ===== */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,20,0.55);
+      z-index: 200;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      backdrop-filter: blur(4px);
+    }
+    .modal-overlay.active { opacity: 1; pointer-events: all; }
+    .modal-sheet {
+      width: 100%; max-width: 480px;
+      background: white;
+      border-radius: 32px 32px 0 0;
+      padding: 20px 20px 36px;
+      transform: translateY(100%);
+      transition: transform 0.45s var(--bounce);
+      max-height: 92vh;
+      overflow-y: auto;
+    }
+    .modal-overlay.active .modal-sheet { transform: translateY(0); }
+    .modal-handle {
+      width: 44px; height: 5px;
+      background: #E0E0F0;
+      border-radius: 3px;
+      margin: 0 auto 16px;
+    }
+    .modal-header {
+      display: flex; align-items: center; gap: 16px;
+      margin-bottom: 18px;
+    }
+    .modal-char-big {
+      width: 72px; height: 72px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #FFF5E6, #FFE8CC);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 44px; font-weight: 900;
+      color: var(--dark);
+      box-shadow: 0 4px 16px rgba(255,140,66,0.25);
+      flex-shrink: 0;
+    }
+    .modal-char-info h2 { font-size: 20px; font-weight: 900; color: var(--dark); }
+    .pinyin-tag {
+      display: inline-block;
+      background: #E8F6FF; color: var(--blue);
+      font-size: 14px; font-weight: 700;
+      padding: 2px 10px; border-radius: 10px;
+      margin-top: 4px;
+    }
+    .stroke-count-tag {
+      display: inline-block;
+      background: #FFF0F5; color: var(--pink);
+      font-size: 13px; font-weight: 700;
+      padding: 2px 10px; border-radius: 10px;
+      margin-top: 4px; margin-left: 6px;
+    }
+
+    /* ===== 笔顺动画画布区 ===== */
+    .stroke-canvas-wrap {
+      background: linear-gradient(135deg, #FAFAFA, #F5F5FF);
+      border-radius: 24px;
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 2px dashed #E0E0F0;
+      display: flex; flex-direction: column;
+      align-items: center;
+    }
+    .canvas-label {
+      font-size: 13px; font-weight: 700;
+      color: var(--mid); margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    /* Hanzi Writer 容器 */
+    #hanziWriterContainer {
+      width: 220px; height: 220px;
+      position: relative;
+    }
+    #hanziWriterContainer svg {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* 田字格叠加层 */
+    .tian-grid-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 220px; height: 220px;
+      pointer-events: none;
+    }
+
+    /* 笔画序号指示 */
+    .stroke-indicators {
+      display: flex; gap: 6px;
+      flex-wrap: wrap; justify-content: center;
+      margin-top: 10px;
+    }
+    .stroke-dot {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: #E8E8F0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+      color: #AAA;
+      transition: all 0.3s var(--bounce);
+      flex-shrink: 0;
+    }
+    .stroke-dot.current {
+      background: var(--red); color: white;
+      transform: scale(1.2);
+      box-shadow: 0 3px 10px rgba(255,90,95,0.4);
+    }
+    .stroke-dot.done { background: var(--green); color: white; }
+
+    /* 进度提示 */
+    #strokeStep {
+      font-size: 13px; font-weight: 700;
+      color: var(--red); margin-left: 6px;
+    }
+
+    /* ===== 控制按钮 ===== */
+    .controls {
+      display: flex; gap: 10px;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+    .ctrl-btn {
+      flex: 1; max-width: 130px;
+      padding: 13px 8px;
+      border-radius: 16px; border: none;
+      font-size: 15px; font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s var(--bounce);
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .ctrl-btn:active { transform: scale(0.92); }
+    .btn-play {
+      background: linear-gradient(135deg, #FF85A1, #FF5A5F);
+      color: white;
+      box-shadow: 0 6px 16px rgba(255,90,95,0.4);
+    }
+    .btn-prev { background: #F0F0FF; color: var(--dark); }
+    .btn-next {
+      background: linear-gradient(135deg, #6BCB77, #4D96FF);
+      color: white;
+      box-shadow: 0 6px 16px rgba(77,150,255,0.3);
+    }
+    .btn-reset { background: #FFF5E6; color: var(--orange); }
+
+    /* ===== 记住了按钮 ===== */
+    .remember-btn {
+      width: 100%; padding: 16px;
+      border-radius: 20px; border: none;
+      background: linear-gradient(135deg, #FFD93D 0%, #FF8C42 100%);
+      color: white;
+      font-size: 18px; font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(255,140,66,0.4);
+      transition: all 0.2s var(--bounce);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      text-shadow: 1px 1px 0 rgba(0,0,0,0.15);
+      letter-spacing: 1px;
+    }
+    .remember-btn:active { transform: scale(0.95); box-shadow: 0 4px 10px rgba(255,140,66,0.3); }
+    .remember-btn.learned-state {
+      background: linear-gradient(135deg, #6BCB77, #4D96FF);
+      box-shadow: 0 8px 20px rgba(77,150,255,0.35);
+    }
+
+    /* ===== 星星奖励动画 ===== */
+    .star-burst {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none; z-index: 999;
+    }
+    .star-particle {
+      position: absolute; font-size: 28px;
+      animation: starFly 1.2s ease-out forwards; opacity: 1;
+    }
+    @keyframes starFly {
+      0%   { transform: translate(0,0) scale(0.5) rotate(0deg); opacity: 1; }
+      60%  { opacity: 1; }
+      100% { transform: translate(var(--tx), var(--ty)) scale(1.5) rotate(var(--tr)); opacity: 0; }
+    }
+
+    /* ===== Toast ===== */
+    .toast {
+      position: fixed; bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--dark); color: white;
+      padding: 10px 24px; border-radius: 20px;
+      font-size: 15px; font-weight: 700;
+      z-index: 500; opacity: 0;
+      transition: all 0.3s var(--bounce);
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ===== 底部导航 ===== */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      z-index: 100;
+      background: white;
+      border-top: 2px solid #F0F0FF;
+      padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+      display: flex; justify-content: space-around;
+      box-shadow: 0 -4px 20px rgba(0,0,100,0.08);
+    }
+    .nav-item {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; gap: 3px;
+      cursor: pointer; padding: 4px 0;
+      border-radius: 12px;
+      transition: all 0.2s;
+    }
+    .nav-item:active { transform: scale(0.88); }
+    .nav-item .nav-icon {
+      font-size: 24px; line-height: 1;
+      filter: grayscale(0.5) opacity(0.6);
+      transition: all 0.2s;
+    }
+    .nav-item.active .nav-icon { filter: none; transform: translateY(-2px) scale(1.1); }
+    .nav-item .nav-label {
+      font-size: 11px; font-weight: 700;
+      color: var(--light); transition: color 0.2s;
+    }
+    .nav-item.active .nav-label { color: var(--blue); }
+
+    /* ===== 主内容区 ===== */
+    .main-content { padding-bottom: 80px; position: relative; z-index: 1; }
+
+    /* ===== 卡通吉祥物 ===== */
+    .mascot-section {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px;
+      background: white; border-radius: 20px;
+      margin: 8px 16px 4px;
+      box-shadow: var(--card-shadow);
+    }
+    .mascot-avatar {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #FFD93D, #FF8C42);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+      box-shadow: 0 4px 12px rgba(255,140,66,0.3);
+      animation: mascotBob 2s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    @keyframes mascotBob {
+      0%, 100% { transform: translateY(0) rotate(-3deg); }
+      50%       { transform: translateY(-5px) rotate(3deg); }
+    }
+    .mascot-bubble {
+      flex: 1;
+      background: #F5F0FF; border-radius: 16px;
+      padding: 10px 14px;
+      position: relative;
+      font-size: 14px; font-weight: 600;
+      color: var(--dark); line-height: 1.5;
+    }
+    .mascot-bubble::before {
+      content: '';
+      position: absolute; left: -8px; top: 50%;
+      transform: translateY(-50%);
+      width: 0; height: 0;
+      border-right: 10px solid #F5F0FF;
+      border-top: 7px solid transparent;
+      border-bottom: 7px solid transparent;
+    }
+
+    /* ===== 统计栏 ===== */
+    .stats-row { display: flex; gap: 10px; padding: 8px 16px; }
+    .stat-card {
+      flex: 1; background: white;
+      border-radius: 16px; padding: 12px 8px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,100,0.07);
+    }
+    .stat-num { font-size: 24px; font-weight: 900; line-height: 1; }
+    .stat-label { font-size: 11px; color: var(--mid); margin-top: 3px; font-weight: 600; }
+
+    /* ===== 关闭按钮 ===== */
+    .close-btn {
+      position: absolute; top: 16px; right: 16px;
+      width: 36px; height: 36px;
+      border-radius: 50%; background: #F0F0F8; border: none;
+      font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--mid); transition: all 0.2s;
+    }
+    .close-btn:active { transform: scale(0.85); background: #E0E0F0; }
+
+    /* ===== 加载状态 ===== */
+    .loading-hint {
+      font-size: 12px; color: var(--mid); margin-top: 8px;
+      text-align: center;
+    }
+
+    /* ===== 空状态 ===== */
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--mid); }
+    .empty-state .empty-icon { font-size: 60px; margin-bottom: 12px; }
+    .empty-state p { font-size: 15px; font-weight: 600; }
+
+    /* ===== 响应式 ===== */
+    @media (max-width: 360px) {
+      .hanzi-grid { grid-template-columns: repeat(3, 1fr); }
+      .card-char { font-size: 26px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<nav class="top-nav">
+  <div class="nav-title"><span>🐼</span> 汉字笔顺学堂</div>
+  <div class="stars-display">
+    <span class="star-icon">⭐</span>
+    <span class="star-count" id="starCount">0</span>
+  </div>
+</nav>
+
+<div class="main-content">
+
+  <!-- 吉祥物提示 -->
+  <div class="mascot-section">
+    <div class="mascot-avatar">🐼</div>
+    <div class="mascot-bubble" id="mascotMsg">
+      你好！我是小胖🐼，和我一起学汉字笔顺吧！点击汉字就可以开始哦～
+    </div>
+  </div>
+
+  <!-- 统计栏 -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-num" style="color:#4D96FF;" id="learnedCount">0</div>
+      <div class="stat-label">已学会</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:#FF8C42;" id="totalCount">0</div>
+      <div class="stat-label">总字数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:#6BCB77;" id="streakCount">0</div>
+      <div class="stat-label">连续天数</div>
+    </div>
+  </div>
+
+  <!-- 进度 -->
+  <div class="progress-section">
+    <div class="progress-label">
+      <span>🌟 今日进度</span>
+      <span id="progressText">0%</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- 分类 -->
+  <div class="category-section">
+    <div class="section-title">📚 选择分类</div>
+    <div class="category-scroll" id="categoryList"></div>
+  </div>
+
+  <!-- 汉字网格 -->
+  <div class="hanzi-grid-section">
+    <div class="section-title">✏️ 开始学习</div>
+    <div class="hanzi-grid" id="hanziGrid"></div>
+  </div>
+
+</div>
+
+<!-- 底部导航 -->
+<nav class="bottom-nav">
+  <div class="nav-item active" onclick="switchTab('learn',this)">
+    <span class="nav-icon">✏️</span>
+    <span class="nav-label">学习</span>
+  </div>
+  <div class="nav-item" onclick="switchTab('review',this)">
+    <span class="nav-icon">🔁</span>
+    <span class="nav-label">复习</span>
+  </div>
+  <div class="nav-item" onclick="switchTab('rank',this)">
+    <span class="nav-icon">🏆</span>
+    <span class="nav-label">排行</span>
+  </div>
+  <div class="nav-item" onclick="switchTab('me',this)">
+    <span class="nav-icon">🐼</span>
+    <span class="nav-label">我的</span>
+  </div>
+</nav>
+
+<!-- ===== 学习弹层 ===== -->
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal-sheet" id="modalSheet">
+    <div class="modal-handle"></div>
+    <button class="close-btn" onclick="closeModal()">✕</button>
+
+    <!-- 汉字信息 -->
+    <div class="modal-header">
+      <div class="modal-char-big" id="modalCharBig">字</div>
+      <div class="modal-char-info">
+        <h2 id="modalCharTitle">汉字</h2>
+        <span class="pinyin-tag" id="modalPinyin">pīn yīn</span>
+        <span class="stroke-count-tag" id="modalStrokeCount">x画</span>
+      </div>
+    </div>
+
+    <!-- 笔顺动画区 -->
+    <div class="stroke-canvas-wrap">
+      <div class="canvas-label">
+        ✏️ 笔顺动画
+        <span id="strokeStep"></span>
+      </div>
+
+      <!-- Hanzi Writer 挂载点（含田字格叠层） -->
+      <div style="position:relative; width:220px; height:220px;">
+        <!-- 田字格 SVG 背景 -->
+        <svg class="tian-grid-overlay" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+          <rect x="5" y="5" width="210" height="210" rx="8"
+                fill="none" stroke="#C0C0D8" stroke-width="2"/>
+          <line x1="110" y1="5" x2="110" y2="215"
+                stroke="#D8D8EE" stroke-width="1" stroke-dasharray="5,5"/>
+          <line x1="5" y1="110" x2="215" y2="110"
+                stroke="#D8D8EE" stroke-width="1" stroke-dasharray="5,5"/>
+          <line x1="5" y1="5" x2="215" y2="215"
+                stroke="#EEEEff" stroke-width="1" stroke-dasharray="4,6"/>
+          <line x1="215" y1="5" x2="5" y2="215"
+                stroke="#EEEEff" stroke-width="1" stroke-dasharray="4,6"/>
+        </svg>
+        <!-- Hanzi Writer 渲染层 -->
+        <div id="hanziWriterContainer"></div>
+      </div>
+
+      <div class="stroke-indicators" id="strokeIndicators"></div>
+      <div class="loading-hint" id="loadingHint">⏳ 正在加载笔顺数据…</div>
+    </div>
+
+    <!-- 控制按钮 -->
+    <div class="controls">
+      <button class="ctrl-btn btn-reset" onclick="doReset()">🔄 重来</button>
+      <button class="ctrl-btn btn-play" onclick="doPlay()" id="playBtn">▶ 播放</button>
+      <button class="ctrl-btn btn-next" onclick="doNext()" id="nextBtn">下一笔 →</button>
+    </div>
+
+    <!-- 记住了 -->
+    <button class="remember-btn" id="rememberBtn" onclick="markLearned()">
+      <span>🌟</span> 我记住了！
+    </button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+<!-- 星星特效层 -->
+<div class="star-burst" id="starBurst"></div>
+
+<script>
+// ============================================================
+//  汉字数据库
+//  字形数据由 Hanzi Writer (cantonese-flashcards/makemeahanzi)
+//  提供，pinyin/meaning 由此处定义
+// ============================================================
+const HANZI_META = {
+  '一': { pinyin: 'yī', meaning: '数字一' },
+  '七': { pinyin: 'qī', meaning: '数字七' },
+  '万': { pinyin: 'wàn', meaning: '一万' },
+  '三': { pinyin: 'sān', meaning: '数字三' },
+  '上': { pinyin: 'shàng', meaning: '上面' },
+  '下': { pinyin: 'xià', meaning: '下面' },
+  '不': { pinyin: 'bù', meaning: '不是' },
+  '丑': { pinyin: 'chǒu', meaning: '丑陋' },
+  '业': { pinyin: 'yè', meaning: '行业' },
+  '东': { pinyin: 'dōng', meaning: '东' },
+  '两': { pinyin: 'liǎng', meaning: '两个' },
+  '个': { pinyin: 'gè', meaning: '量词' },
+  '中': { pinyin: 'zhōng', meaning: '中间' },
+  '为': { pinyin: 'wèi', meaning: '为了' },
+  '久': { pinyin: 'jiǔ', meaning: '久远' },
+  '义': { pinyin: 'yì', meaning: '义气' },
+  '乐': { pinyin: 'lè', meaning: '快乐' },
+  '九': { pinyin: 'jiǔ', meaning: '数字九' },
+  '乡': { pinyin: 'xiāng', meaning: '乡村' },
+  '书': { pinyin: 'shū', meaning: '书本' },
+  '了': { pinyin: 'le', meaning: '助词' },
+  '事': { pinyin: 'shì', meaning: '事情' },
+  '二': { pinyin: 'èr', meaning: '数字二' },
+  '云': { pinyin: 'yún', meaning: '云朵' },
+  '五': { pinyin: 'wǔ', meaning: '数字五' },
+  '些': { pinyin: 'xiē', meaning: '一些' },
+  '交': { pinyin: 'jiāo', meaning: '交通' },
+  '亮': { pinyin: 'liàng', meaning: '明亮' },
+  '亲': { pinyin: 'qīn', meaning: '亲人' },
+  '人': { pinyin: 'rén', meaning: '人' },
+  '亿': { pinyin: 'yì', meaning: '一亿' },
+  '今': { pinyin: 'jīn', meaning: '今天' },
+  '他': { pinyin: 'tā', meaning: '他' },
+  '代': { pinyin: 'dài', meaning: '代表' },
+  '以': { pinyin: 'yǐ', meaning: '以为' },
+  '们': { pinyin: 'men', meaning: '助词' },
+  '会': { pinyin: 'huì', meaning: '会议' },
+  '伯': { pinyin: 'bó', meaning: '伯父' },
+  '但': { pinyin: 'dàn', meaning: '但是' },
+  '作': { pinyin: 'zuò', meaning: '工作' },
+  '你': { pinyin: 'nǐ', meaning: '你' },
+  '侧': { pinyin: 'cè', meaning: '侧面' },
+  '信': { pinyin: 'xìn', meaning: '信任' },
+  '倍': { pinyin: 'bèi', meaning: '倍数' },
+  '假': { pinyin: 'jiǎ', meaning: '假的' },
+  '儿': { pinyin: 'ér', meaning: '儿子' },
+  '兄': { pinyin: 'xiōng', meaning: '兄弟' },
+  '兔': { pinyin: 'tù', meaning: '兔子' },
+  '全': { pinyin: 'quán', meaning: '全部' },
+  '八': { pinyin: 'bā', meaning: '数字八' },
+  '公': { pinyin: 'gōng', meaning: '公共' },
+  '六': { pinyin: 'liù', meaning: '数字六' },
+  '其': { pinyin: 'qí', meaning: '其他' },
+  '内': { pinyin: 'nèi', meaning: '内部' },
+  '写': { pinyin: 'xiě', meaning: '写字' },
+  '农': { pinyin: 'nóng', meaning: '农业' },
+  '冬': { pinyin: 'dōng', meaning: '冬天' },
+  '凤': { pinyin: 'fèng', meaning: '凤凰' },
+  '出': { pinyin: 'chū', meaning: '出来' },
+  '分': { pinyin: 'fēn', meaning: '分钟' },
+  '初': { pinyin: 'chū', meaning: '初' },
+  '前': { pinyin: 'qián', meaning: '前面' },
+  '勇': { pinyin: 'yǒng', meaning: '勇敢' },
+  '化': { pinyin: 'huà', meaning: '变化' },
+  '北': { pinyin: 'běi', meaning: '北' },
+  '医': { pinyin: 'yī', meaning: '医生' },
+  '十': { pinyin: 'shí', meaning: '数字十' },
+  '千': { pinyin: 'qiān', meaning: '一千' },
+  '午': { pinyin: 'wǔ', meaning: '中午' },
+  '半': { pinyin: 'bàn', meaning: '一半' },
+  '单': { pinyin: 'dān', meaning: '单个' },
+  '南': { pinyin: 'nán', meaning: '南' },
+  '厂': { pinyin: 'chǎng', meaning: '工厂' },
+  '厅': { pinyin: 'tīng', meaning: '客厅' },
+  '历': { pinyin: 'lì', meaning: '历史' },
+  '厨': { pinyin: 'chú', meaning: '厨房' },
+  '去': { pinyin: 'qù', meaning: '去' },
+  '县': { pinyin: 'xiàn', meaning: '县' },
+  '又': { pinyin: 'yòu', meaning: '又' },
+  '双': { pinyin: 'shuāng', meaning: '双数' },
+  '发': { pinyin: 'fā', meaning: '发现' },
+  '叔': { pinyin: 'shū', meaning: '叔叔' },
+  '口': { pinyin: 'kǒu', meaning: '嘴巴' },
+  '古': { pinyin: 'gǔ', meaning: '古代' },
+  '可': { pinyin: 'kě', meaning: '可以' },
+  '史': { pinyin: 'shǐ', meaning: '历史' },
+  '右': { pinyin: 'yòu', meaning: '右' },
+  '叶': { pinyin: 'yè', meaning: '叶子' },
+  '司': { pinyin: 'sī', meaning: '公司' },
+  '吃': { pinyin: 'chī', meaning: '吃饭' },
+  '同': { pinyin: 'tóng', meaning: '相同' },
+  '后': { pinyin: 'hòu', meaning: '后面' },
+  '向': { pinyin: 'xiàng', meaning: '方向' },
+  '听': { pinyin: 'tīng', meaning: '听' },
+  '和': { pinyin: 'hé', meaning: '和' },
+  '咸': { pinyin: 'xián', meaning: '咸' },
+  '哀': { pinyin: 'āi', meaning: '悲哀' },
+  '哭': { pinyin: 'kū', meaning: '哭泣' },
+  '唱': { pinyin: 'chàng', meaning: '唱歌' },
+  '商': { pinyin: 'shāng', meaning: '商业' },
+  '善': { pinyin: 'shàn', meaning: '善良' },
+  '喜': { pinyin: 'xǐ', meaning: '喜欢' },
+  '喝': { pinyin: 'hē', meaning: '喝水' },
+  '嘴': { pinyin: 'zuǐ', meaning: '嘴巴' },
+  '四': { pinyin: 'sì', meaning: '数字四' },
+  '因': { pinyin: 'yīn', meaning: '因为' },
+  '园': { pinyin: 'yuán', meaning: '园' },
+  '国': { pinyin: 'guó', meaning: '国家' },
+  '图': { pinyin: 'tú', meaning: '图书' },
+  '土': { pinyin: 'tǔ', meaning: '土地' },
+  '在': { pinyin: 'zài', meaning: '在' },
+  '地': { pinyin: 'dì', meaning: '地方' },
+  '场': { pinyin: 'chǎng', meaning: '广场' },
+  '坏': { pinyin: 'huài', meaning: '坏' },
+  '坐': { pinyin: 'zuò', meaning: '坐' },
+  '城': { pinyin: 'chéng', meaning: '城市' },
+  '境': { pinyin: 'jìng', meaning: '环境' },
+  '夏': { pinyin: 'xià', meaning: '夏天' },
+  '外': { pinyin: 'wài', meaning: '外面' },
+  '多': { pinyin: 'duō', meaning: '多' },
+  '夜': { pinyin: 'yè', meaning: '夜晚' },
+  '大': { pinyin: 'dà', meaning: '大' },
+  '天': { pinyin: 'tiān', meaning: '天空' },
+  '夫': { pinyin: 'fū', meaning: '夫妻' },
+  '头': { pinyin: 'tóu', meaning: '头部' },
+  '女': { pinyin: 'nǚ', meaning: '女性' },
+  '奶': { pinyin: 'nǎi', meaning: '奶奶' },
+  '好': { pinyin: 'hǎo', meaning: '好' },
+  '如': { pinyin: 'rú', meaning: '如果' },
+  '妈': { pinyin: 'māma', meaning: '妈妈' },
+  '妹': { pinyin: 'mèi', meaning: '妹妹' },
+  '妻': { pinyin: 'qī', meaning: '妻子' },
+  '始': { pinyin: 'shǐ', meaning: '开始' },
+  '姐': { pinyin: 'jiě', meaning: '姐姐' },
+  '姑': { pinyin: 'gū', meaning: '姑姑' },
+  '姜': { pinyin: 'jiāng', meaning: '姜' },
+  '婶': { pinyin: 'shěn', meaning: '婶婶' },
+  '嫩': { pinyin: 'nèn', meaning: '嫩' },
+  '子': { pinyin: 'zǐ', meaning: '孩子' },
+  '字': { pinyin: 'zì', meaning: '汉字' },
+  '孙': { pinyin: 'sūn', meaning: '孙子' },
+  '学': { pinyin: 'xué', meaning: '学习' },
+  '宁': { pinyin: 'níng', meaning: '安宁' },
+  '安': { pinyin: 'ān', meaning: '安全' },
+  '室': { pinyin: 'shì', meaning: '室' },
+  '家': { pinyin: 'jiā', meaning: '家' },
+  '对': { pinyin: 'duì', meaning: '对' },
+  '小': { pinyin: 'xiǎo', meaning: '小' },
+  '就': { pinyin: 'jiù', meaning: '就是' },
+  '展': { pinyin: 'zhǎn', meaning: '发展' },
+  '山': { pinyin: 'shān', meaning: '山' },
+  '川': { pinyin: 'chuān', meaning: '河川' },
+  '工': { pinyin: 'gōng', meaning: '工作' },
+  '左': { pinyin: 'zuǒ', meaning: '左' },
+  '已': { pinyin: 'yǐ', meaning: '已经' },
+  '市': { pinyin: 'shì', meaning: '城市' },
+  '师': { pinyin: 'shī', meaning: '老师' },
+  '年': { pinyin: 'nián', meaning: '年' },
+  '幸': { pinyin: 'xìng', meaning: '幸福' },
+  '底': { pinyin: 'dǐ', meaning: '底部' },
+  '府': { pinyin: 'fǔ', meaning: '政府' },
+  '庭': { pinyin: 'tíng', meaning: '家庭' },
+  '建': { pinyin: 'jiàn', meaning: '建设' },
+  '弟': { pinyin: 'dì', meaning: '弟弟' },
+  '当': { pinyin: 'dāng', meaning: '当' },
+  '彩': { pinyin: 'cǎi', meaning: '彩色' },
+  '很': { pinyin: 'hěn', meaning: '很' },
+  '心': { pinyin: 'xīn', meaning: '心' },
+  '快': { pinyin: 'kuài', meaning: '快乐' },
+  '怒': { pinyin: 'nù', meaning: '愤怒' },
+  '怕': { pinyin: 'pà', meaning: '害怕' },
+  '怯': { pinyin: 'qiè', meaning: '胆怯' },
+  '恨': { pinyin: 'hèn', meaning: '恨' },
+  '恶': { pinyin: 'è', meaning: '恶' },
+  '悲': { pinyin: 'bēi', meaning: '悲伤' },
+  '情': { pinyin: 'qíng', meaning: '情感' },
+  '想': { pinyin: 'xiǎng', meaning: '想' },
+  '慢': { pinyin: 'màn', meaning: '慢' },
+  '我': { pinyin: 'wǒ', meaning: '我' },
+  '房': { pinyin: 'fáng', meaning: '房子' },
+  '所': { pinyin: 'suǒ', meaning: '所以' },
+  '手': { pinyin: 'shǒu', meaning: '手' },
+  '技': { pinyin: 'jì', meaning: '技术' },
+  '把': { pinyin: 'bǎ', meaning: '把握' },
+  '指': { pinyin: 'zhǐ', meaning: '手指' },
+  '政': { pinyin: 'zhèng', meaning: '政府' },
+  '教': { pinyin: 'jiào', meaning: '教育' },
+  '文': { pinyin: 'wén', meaning: '文化' },
+  '新': { pinyin: 'xīn', meaning: '新' },
+  '方': { pinyin: 'fāng', meaning: '方向' },
+  '旁': { pinyin: 'páng', meaning: '旁边' },
+  '族': { pinyin: 'zú', meaning: '民族' },
+  '日': { pinyin: 'rì', meaning: '太阳' },
+  '旧': { pinyin: 'jiù', meaning: '旧' },
+  '早': { pinyin: 'zǎo', meaning: '早上' },
+  '时': { pinyin: 'shí', meaning: '时间' },
+  '明': { pinyin: 'míng', meaning: '明天' },
+  '星': { pinyin: 'xīng', meaning: '星星' },
+  '春': { pinyin: 'chūn', meaning: '春天' },
+  '昨': { pinyin: 'zuó', meaning: '昨天' },
+  '是': { pinyin: 'shì', meaning: '是' },
+  '晚': { pinyin: 'wǎn', meaning: '晚上' },
+  '暗': { pinyin: 'àn', meaning: '黑暗' },
+  '更': { pinyin: 'gèng', meaning: '更加' },
+  '月': { pinyin: 'yuè', meaning: '月亮' },
+  '有': { pinyin: 'yǒu', meaning: '有' },
+  '木': { pinyin: 'mù', meaning: '树木' },
+  '末': { pinyin: 'mò', meaning: '末尾' },
+  '村': { pinyin: 'cūn', meaning: '村庄' },
+  '来': { pinyin: 'lái', meaning: '来' },
+  '果': { pinyin: 'guǒ', meaning: '果实' },
+  '树': { pinyin: 'shù', meaning: '树' },
+  '校': { pinyin: 'xiào', meaning: '学校' },
+  '根': { pinyin: 'gēn', meaning: '根部' },
+  '桥': { pinyin: 'qiáo', meaning: '桥' },
+  '棕': { pinyin: 'zōng', meaning: '棕色' },
+  '楼': { pinyin: 'lóu', meaning: '楼' },
+  '橙': { pinyin: 'chéng', meaning: '橙色' },
+  '欢': { pinyin: 'huān', meaning: '欢乐' },
+  '正': { pinyin: 'zhèng', meaning: '正确' },
+  '母': { pinyin: 'mǔ', meaning: '母亲' },
+  '民': { pinyin: 'mín', meaning: '人民' },
+  '水': { pinyin: 'shuǐ', meaning: '水' },
+  '江': { pinyin: 'jiāng', meaning: '江' },
+  '没': { pinyin: 'méi', meaning: '没有' },
+  '河': { pinyin: 'hé', meaning: '河流' },
+  '油': { pinyin: 'yóu', meaning: '油' },
+  '浅': { pinyin: 'qiǎn', meaning: '浅色' },
+  '济': { pinyin: 'jì', meaning: '经济' },
+  '海': { pinyin: 'hǎi', meaning: '大海' },
+  '深': { pinyin: 'shēn', meaning: '深色' },
+  '游': { pinyin: 'yóu', meaning: '游泳' },
+  '湖': { pinyin: 'hú', meaning: '湖泊' },
+  '火': { pinyin: 'huǒ', meaning: '火' },
+  '灰': { pinyin: 'huī', meaning: '灰色' },
+  '熊': { pinyin: 'xióng', meaning: '熊' },
+  '熟': { pinyin: 'shú', meaning: '成熟' },
+  '燕': { pinyin: 'yàn', meaning: '燕子' },
+  '爬': { pinyin: 'pá', meaning: '爬' },
+  '爱': { pinyin: 'ài', meaning: '爱' },
+  '父': { pinyin: 'fù', meaning: '父亲' },
+  '爷': { pinyin: 'yé', meaning: '爷爷' },
+  '爸': { pinyin: 'bà', meaning: '爸爸' },
+  '牙': { pinyin: 'yá', meaning: '牙齿' },
+  '牛': { pinyin: 'niú', meaning: '牛' },
+  '狐': { pinyin: 'hú', meaning: '狐狸' },
+  '狗': { pinyin: 'gǒu', meaning: '狗' },
+  '狼': { pinyin: 'láng', meaning: '狼' },
+  '猪': { pinyin: 'zhū', meaning: '猪' },
+  '猫': { pinyin: 'māo', meaning: '猫' },
+  '猴': { pinyin: 'hóu', meaning: '猴子' },
+  '王': { pinyin: 'wáng', meaning: '王' },
+  '环': { pinyin: 'huán', meaning: '环境' },
+  '现': { pinyin: 'xiàn', meaning: '现在' },
+  '球': { pinyin: 'qiú', meaning: '地球' },
+  '瓜': { pinyin: 'guā', meaning: '瓜' },
+  '甜': { pinyin: 'tián', meaning: '甜' },
+  '生': { pinyin: 'shēng', meaning: '生活' },
+  '用': { pinyin: 'yòng', meaning: '使用' },
+  '田': { pinyin: 'tián', meaning: '田地' },
+  '男': { pinyin: 'nán', meaning: '男性' },
+  '画': { pinyin: 'huà', meaning: '画画' },
+  '界': { pinyin: 'jiè', meaning: '世界' },
+  '白': { pinyin: 'bái', meaning: '白色' },
+  '百': { pinyin: 'bǎi', meaning: '一百' },
+  '的': { pinyin: 'de', meaning: '助词' },
+  '盐': { pinyin: 'yán', meaning: '盐' },
+  '目': { pinyin: 'mù', meaning: '眼睛' },
+  '省': { pinyin: 'shěng', meaning: '省' },
+  '眉': { pinyin: 'méi', meaning: '眉毛' },
+  '看': { pinyin: 'kàn', meaning: '看' },
+  '真': { pinyin: 'zhēn', meaning: '真实' },
+  '眼': { pinyin: 'yǎn', meaning: '眼睛' },
+  '睡': { pinyin: 'shuì', meaning: '睡觉' },
+  '知': { pinyin: 'zhī', meaning: '知道' },
+  '石': { pinyin: 'shí', meaning: '石头' },
+  '社': { pinyin: 'shè', meaning: '社会' },
+  '祖': { pinyin: 'zǔ', meaning: '祖先' },
+  '福': { pinyin: 'fú', meaning: '福气' },
+  '秋': { pinyin: 'qiū', meaning: '秋天' },
+  '种': { pinyin: 'zhǒng', meaning: '种类' },
+  '科': { pinyin: 'kē', meaning: '科技' },
+  '秒': { pinyin: 'miǎo', meaning: '秒' },
+  '窗': { pinyin: 'chuāng', meaning: '窗户' },
+  '站': { pinyin: 'zhàn', meaning: '站立' },
+  '端': { pinyin: 'duān', meaning: '端' },
+  '笑': { pinyin: 'xiào', meaning: '笑' },
+  '答': { pinyin: 'dá', meaning: '回答' },
+  '米': { pinyin: 'mǐ', meaning: '大米' },
+  '粉': { pinyin: 'fěn', meaning: '粉色' },
+  '糖': { pinyin: 'táng', meaning: '糖' },
+  '紫': { pinyin: 'zǐ', meaning: '紫色' },
+  '红': { pinyin: 'hóng', meaning: '红色' },
+  '终': { pinyin: 'zhōng', meaning: '终止' },
+  '经': { pinyin: 'jīng', meaning: '经过' },
+  '绿': { pinyin: 'lǜ', meaning: '绿色' },
+  '羊': { pinyin: 'yáng', meaning: '羊' },
+  '美': { pinyin: 'měi', meaning: '美丽' },
+  '老': { pinyin: 'lǎo', meaning: '老' },
+  '者': { pinyin: 'zhě', meaning: '工作者' },
+  '而': { pinyin: 'ér', meaning: '而且' },
+  '耳': { pinyin: 'ěr', meaning: '耳朵' },
+  '肉': { pinyin: 'ròu', meaning: '肉' },
+  '肘': { pinyin: 'zhǒu', meaning: '手肘' },
+  '肩': { pinyin: 'jiān', meaning: '肩膀' },
+  '育': { pinyin: 'yù', meaning: '教育' },
+  '背': { pinyin: 'bèi', meaning: '背部' },
+  '胸': { pinyin: 'xiōng', meaning: '胸部' },
+  '能': { pinyin: 'néng', meaning: '能够' },
+  '脖': { pinyin: 'bó', meaning: '脖子' },
+  '脚': { pinyin: 'jiǎo', meaning: '脚' },
+  '脸': { pinyin: 'liǎn', meaning: '脸' },
+  '腰': { pinyin: 'yāo', meaning: '腰部' },
+  '腹': { pinyin: 'fù', meaning: '腹部' },
+  '腿': { pinyin: 'tuǐ', meaning: '腿' },
+  '膝': { pinyin: 'xī', meaning: '膝盖' },
+  '臂': { pinyin: 'bì', meaning: '手臂' },
+  '舅': { pinyin: 'jiù', meaning: '舅舅' },
+  '舌': { pinyin: 'shé', meaning: '舌头' },
+  '色': { pinyin: 'sè', meaning: '颜色' },
+  '花': { pinyin: 'huā', meaning: '花' },
+  '苦': { pinyin: 'kǔ', meaning: '苦' },
+  '茶': { pinyin: 'chá', meaning: '茶' },
+  '草': { pinyin: 'cǎo', meaning: '草' },
+  '菜': { pinyin: 'cài', meaning: '蔬菜' },
+  '葱': { pinyin: 'cōng', meaning: '葱' },
+  '蒜': { pinyin: 'suàn', meaning: '大蒜' },
+  '蓝': { pinyin: 'lán', meaning: '蓝色' },
+  '虎': { pinyin: 'hǔ', meaning: '老虎' },
+  '虾': { pinyin: 'xiā', meaning: '虾' },
+  '蚕': { pinyin: 'cán', meaning: '蚕' },
+  '蛇': { pinyin: 'shé', meaning: '蛇' },
+  '蛋': { pinyin: 'dàn', meaning: '鸡蛋' },
+  '蜂': { pinyin: 'fēng', meaning: '蜜蜂' },
+  '蝶': { pinyin: 'dié', meaning: '蝴蝶' },
+  '蟹': { pinyin: 'xiè', meaning: '螃蟹' },
+  '行': { pinyin: 'xíng', meaning: '行走' },
+  '街': { pinyin: 'jiē', meaning: '街道' },
+  '西': { pinyin: 'xī', meaning: '西' },
+  '角': { pinyin: 'jiǎo', meaning: '角' },
+  '让': { pinyin: 'ràng', meaning: '让' },
+  '设': { pinyin: 'shè', meaning: '设计' },
+  '诚': { pinyin: 'chéng', meaning: '诚实' },
+  '说': { pinyin: 'shuō', meaning: '说话' },
+  '读': { pinyin: 'dú', meaning: '读书' },
+  '豆': { pinyin: 'dòu', meaning: '豆子' },
+  '象': { pinyin: 'xiàng', meaning: '大象' },
+  '走': { pinyin: 'zǒu', meaning: '走路' },
+  '跑': { pinyin: 'pǎo', meaning: '跑步' },
+  '路': { pinyin: 'lù', meaning: '路' },
+  '跳': { pinyin: 'tiào', meaning: '跳' },
+  '蹲': { pinyin: 'dūn', meaning: '蹲下' },
+  '躺': { pinyin: 'tǎng', meaning: '躺下' },
+  '车': { pinyin: 'chē', meaning: '车' },
+  '输': { pinyin: 'shū', meaning: '输出' },
+  '辣': { pinyin: 'là', meaning: '辣' },
+  '边': { pinyin: 'biān', meaning: '边' },
+  '过': { pinyin: 'guò', meaning: '经过' },
+  '运': { pinyin: 'yùn', meaning: '运输' },
+  '还': { pinyin: 'hái', meaning: '还有' },
+  '这': { pinyin: 'zhè', meaning: '这个' },
+  '通': { pinyin: 'tōng', meaning: '通道' },
+  '道': { pinyin: 'dào', meaning: '道路' },
+  '那': { pinyin: 'nà', meaning: '那个' },
+  '都': { pinyin: 'dōu', meaning: '都是' },
+  '酱': { pinyin: 'jiàng', meaning: '酱' },
+  '酸': { pinyin: 'suān', meaning: '酸' },
+  '醋': { pinyin: 'cù', meaning: '醋' },
+  '里': { pinyin: 'lǐ', meaning: '里面' },
+  '金': { pinyin: 'jīn', meaning: '金色' },
+  '银': { pinyin: 'yín', meaning: '银行' },
+  '镇': { pinyin: 'zhèn', meaning: '小镇' },
+  '门': { pinyin: 'mén', meaning: '门' },
+  '问': { pinyin: 'wèn', meaning: '提问' },
+  '间': { pinyin: 'jiān', meaning: '中间' },
+  '院': { pinyin: 'yuàn', meaning: '学院' },
+  '雨': { pinyin: 'yǔ', meaning: '雨' },
+  '雪': { pinyin: 'xuě', meaning: '雪' },
+  '零': { pinyin: 'líng', meaning: '零' },
+  '青': { pinyin: 'qīng', meaning: '青色' },
+  '面': { pinyin: 'miàn', meaning: '面部' },
+  '顶': { pinyin: 'dǐng', meaning: '顶部' },
+  '颈': { pinyin: 'jǐng', meaning: '颈部' },
+  '额': { pinyin: 'é', meaning: '额头' },
+  '风': { pinyin: 'fēng', meaning: '风' },
+  '飞': { pinyin: 'fēi', meaning: '飞' },
+  '饭': { pinyin: 'fàn', meaning: '饭' },
+  '馆': { pinyin: 'guǎn', meaning: '博物馆' },
+  '香': { pinyin: 'xiāng', meaning: '香' },
+  '马': { pinyin: 'mǎ', meaning: '马' },
+  '鱼': { pinyin: 'yú', meaning: '鱼' },
+  '鲜': { pinyin: 'xiān', meaning: '新鲜' },
+  '鸟': { pinyin: 'niǎo', meaning: '鸟' },
+  '鸡': { pinyin: 'jī', meaning: '鸡' },
+  '鸭': { pinyin: 'yā', meaning: '鸭子' },
+  '鹅': { pinyin: 'é', meaning: '鹅' },
+  '鹰': { pinyin: 'yīng', meaning: '老鹰' },
+  '鹿': { pinyin: 'lù', meaning: '鹿' },
+  '黄': { pinyin: 'huáng', meaning: '黄色' },
+  '黑': { pinyin: 'hēi', meaning: '黑色' },
+  '鼻': { pinyin: 'bí', meaning: '鼻子' },
+  '龙': { pinyin: 'lóng', meaning: '龙' },
+  '龟': { pinyin: 'guī', meaning: '乌龟' },
+};
+
+// 分类数据
+const CATEGORIES = [
+  { id: 'all', name: '全部', emoji: '📖', chars: [] },
+  { id: 'grade1', name: '一年级', emoji: '🌱', chars: ['一','二','三','四','五','六','七','八','九','十','人','大','小','中','上','下','口','日','月','木','水','火','土','王','田','目','耳','手','心','山','不','有','了','是','我','你','他','的','在','来','个','这','那','们','和','好','子','女','男','天'] },
+  { id: 'grade2', name: '二年级', emoji: '🌿', chars: ['马','牛','羊','鱼','鸟','花','草','树','叶','果','白','红','黑','青','色','国','家','门','车','路','书','字','学','生','老','师','同','年','父','母','兄','弟','姐','妹','儿','爸','妈','去','说','看','听','写','读','画','唱','跑'] },
+  { id: 'grade3', name: '三年级', emoji: '📚', chars: ['时','间','地','方','工','作','已','经','以','为','用','者','就','都','而','能','多','正','还','把','对','又','可','向','但','更','没','其','种','行','所','让','问','很','过','知','道','出','发','事','些','前','后','里','外','因','如'] },
+  { id: 'grade4', name: '四年级', emoji: '🎒', chars: ['城','市','政','府','历','史','文','化','社','会','经','济','科','技','环','境','展','建','设','教','育','医','院','银','行','公','司','交','通','运','输','商','业','农','厂','民','族','界','全','球','现','代'] },
+  { id: 'number', name: '数字', emoji: '🔢', chars: ['一','二','三','四','五','六','七','八','九','十','百','千','万','亿','零','两','双','单','半','倍'] },
+  { id: 'body', name: '身体', emoji: '👁️', chars: ['人','口','目','耳','手','心','头','面','眼','鼻','嘴','牙','舌','脸','额','眉','肩','臂','腿','脚','背','腹','胸','腰','颈','脖','指','肘','膝'] },
+  { id: 'animal', name: '动物', emoji: '🐾', chars: ['马','牛','羊','鱼','鸟','猫','狗','鸡','鸭','鹅','虎','熊','狼','狐','兔','鹿','象','猪','猴','蛇','龙','凤','龟','蟹','虾','蚕','蜂','蝶','鹰','燕'] },
+  { id: 'nature', name: '自然', emoji: '🌈', chars: ['山','水','火','土','木','石','云','风','雨','雪','日','月','星','天','地','海','湖','河','江','川','春','夏','秋','冬','花','草','树','叶','根','果'] },
+  { id: 'color', name: '颜色', emoji: '🎨', chars: ['红','橙','黄','绿','青','蓝','紫','白','黑','灰','粉','棕','金','银','色','彩','亮','暗','浅','深'] },
+  { id: 'family', name: '家庭', emoji: '👨‍👩‍👧', chars: ['父','母','兄','弟','姐','妹','儿','女','子','孙','祖','爷','奶','爸','妈','叔','伯','舅','姑','婶','夫','妻','家','庭','亲','爱','情','义'] },
+  { id: 'food', name: '食物', emoji: '🍜', chars: ['米','面','饭','菜','肉','鱼','蛋','豆','油','盐','糖','醋','酱','茶','水','果','瓜','葱','蒜','姜','辣','甜','酸','苦','咸','香','鲜','嫩','熟'] },
+  { id: 'direction', name: '方向', emoji: '🧭', chars: ['东','西','南','北','上','下','左','右','前','后','内','外','中','旁','边','角','端','侧','顶','底'] },
+  { id: 'action', name: '动作', emoji: '🏃', chars: ['走','跑','跳','飞','游','爬','坐','站','躺','蹲','看','听','说','写','读','画','唱','吃','喝','睡','笑','哭','想','爱','恨','怕','学','教','问','答'] },
+  { id: 'time', name: '时间', emoji: '⏰', chars: ['年','月','日','时','分','秒','今','昨','明','早','晚','午','夜','春','夏','秋','冬','古','久','新','旧','始','终','前','初','末','当'] },
+  { id: 'place', name: '地点', emoji: '🏠', chars: ['家','学','校','院','楼','房','室','厅','厨','门','窗','路','街','桥','园','图','馆','场','城','村','镇','山','海','国','省','市','县','乡'] },
+  { id: 'emotion', name: '情感', emoji: '❤️', chars: ['爱','恨','喜','怒','哀','乐','笑','哭','悲','欢','好','坏','美','丑','善','恶','真','假','诚','信','勇','怯','苦','幸','福','安','宁','快','慢'] },
+];
+
+// ============================================================
+//  应用状态
+// ============================================================
+const state = {
+  stars:           parseInt(localStorage.getItem('stars') || '0'),
+  learned:         JSON.parse(localStorage.getItem('learnedChars') || '[]'),
+  currentCategory: 'all',
+  currentChar:     null,
+  streak:          parseInt(localStorage.getItem('streak') || '1'),
+  // Hanzi Writer 实例
+  writer:          null,
+  writerReady:     false,
+  strokeCount:     0,
+  currentStroke:   -1,
+  isAnimating:     false,
+};
+
+// ============================================================
+//  初始化
+// ============================================================
+function init() {
+  renderCategories();
+  renderGrid();
+  updateStats();
+  updateStarDisplay();
+}
+
+function getAllChars() {
+  if (state.currentCategory === 'all') return Object.keys(HANZI_META);
+  const cat = CATEGORIES.find(c => c.id === state.currentCategory);
+  if (!cat || !cat.chars) return Object.keys(HANZI_META);
+  return cat.chars.filter(c => HANZI_META[c]);
+}
+
+// ============================================================
+//  渲染分类
+// ============================================================
+function renderCategories() {
+  document.getElementById('categoryList').innerHTML = CATEGORIES.map(cat => {
+    const count = cat.id === 'all' ? Object.keys(HANZI_META).length : (cat.chars ? cat.chars.filter(c => HANZI_META[c]).length : 0);
+    return `
+    <button class="cat-btn ${cat.id === state.currentCategory ? 'active' : ''}"
+      onclick="selectCategory('${cat.id}')">
+      ${cat.emoji} ${cat.name}<span style="font-size:11px;opacity:0.75;margin-left:3px;">${count}</span>
+    </button>`;
+  }).join('');
+}
+
+function selectCategory(id) {
+  state.currentCategory = id;
+  renderCategories();
+  renderGrid();
+  updateStats();
+  const msgs = ['来学这一组吧！✨', '这一组很有趣哦！🌟', '加油，你最棒！💪', '每天学一点越来越厉害！🎉'];
+  setMascotMsg(msgs[Math.floor(Math.random() * msgs.length)]);
+}
+
+// ============================================================
+//  渲染汉字网格
+// ============================================================
+const CARD_COLORS = ['color-1','color-2','color-3','color-4','color-5','color-6'];
+
+function renderGrid() {
+  const chars = getAllChars();
+  document.getElementById('totalCount').textContent = chars.length;
+  const el = document.getElementById('hanziGrid');
+  if (chars.length === 0) {
+    el.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="empty-icon">🤔</div><p>这个分类还没有汉字哦</p></div>`;
+    return;
+  }
+  el.innerHTML = chars.map((char, i) => {
+    const data = HANZI_META[char];
+    const isLearned = state.learned.includes(char);
+    return `
+      <div class="hanzi-card ${CARD_COLORS[i % 6]} ${isLearned ? 'learned' : ''}"
+           onclick="openChar('${char}')">
+        <div class="card-char">${char}</div>
+        <div class="card-pinyin">${data.pinyin}</div>
+        ${isLearned ? '<div class="card-badge">✅</div>' : ''}
+      </div>`;
+  }).join('');
+}
+
+// ============================================================
+//  统计
+// ============================================================
+function updateStats() {
+  const chars = getAllChars();
+  const learnedInCat = chars.filter(c => state.learned.includes(c)).length;
+  document.getElementById('learnedCount').textContent = state.learned.length;
+  document.getElementById('totalCount').textContent  = chars.length;
+  document.getElementById('streakCount').textContent = state.streak;
+  const pct = chars.length > 0 ? Math.round(learnedInCat / chars.length * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = pct + '%';
+}
+function updateStarDisplay() {
+  document.getElementById('starCount').textContent = state.stars;
+}
+
+// ============================================================
+//  打开汉字弹层 & 创建 Hanzi Writer 实例
+// ============================================================
+function openChar(char) {
+  const meta = HANZI_META[char];
+  if (!meta) return;
+
+  state.currentChar  = char;
+  state.writerReady  = false;
+  state.strokeCount  = 0;
+  state.currentStroke = -1;
+  state.isAnimating  = false;
+
+  // 基础信息
+  document.getElementById('modalCharBig').textContent   = char;
+  document.getElementById('modalCharTitle').textContent = char + ' — ' + meta.meaning;
+  document.getElementById('modalPinyin').textContent    = meta.pinyin;
+  document.getElementById('modalStrokeCount').textContent = '? 画';
+  document.getElementById('strokeStep').textContent     = '';
+  document.getElementById('loadingHint').style.display  = 'block';
+  document.getElementById('strokeIndicators').innerHTML = '';
+
+  // 记住按钮
+  const remBtn = document.getElementById('rememberBtn');
+  if (state.learned.includes(char)) {
+    remBtn.classList.add('learned-state');
+    remBtn.innerHTML = '<span>✅</span> 已学会！';
+  } else {
+    remBtn.classList.remove('learned-state');
+    remBtn.innerHTML = '<span>🌟</span> 我记住了！';
+  }
+
+  setMascotMsg(`正在学"${char}"，${meta.meaning}，${meta.pinyin}，笔顺动画马上开始！`);
+
+  // 先展示弹层
+  document.getElementById('modalOverlay').classList.add('active');
+
+  // 销毁旧 writer（如有），清空容器
+  const container = document.getElementById('hanziWriterContainer');
+  container.innerHTML = '';
+  state.writer = null;
+
+  // 延迟一帧再创建（等容器尺寸稳定）
+  requestAnimationFrame(() => {
+    createWriter(char);
+  });
+}
+
+// ============================================================
+//  创建 Hanzi Writer 实例
+// ============================================================
+function createWriter(char) {
+  // 容器保证 220×220
+  const container = document.getElementById('hanziWriterContainer');
+  container.style.width  = '220px';
+  container.style.height = '220px';
+
+  state.writer = HanziWriter.create('hanziWriterContainer', char, {
+    width:  220,
+    height: 220,
+    padding: 10,
+    showOutline: true,
+    outlineColor: '#DDDDEE',
+    strokeColor: '#3A3A5C',
+    radicalColor: '#3A3A5C',
+    highlightColor: '#FF5A5F',
+    showCharacter: false,
+    strokeAnimationSpeed: 1,
+    delayBetweenStrokes: 400,
+    charDataLoader: function(char, onComplete) {
+      const url = `https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0/${encodeURIComponent(char)}.json`;
+      fetch(url)
+        .then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(data => onComplete(data))
+        .catch(err => {
+          console.warn('笔顺数据加载失败:', char, err);
+          document.getElementById('loadingHint').textContent = '😢 该字数据暂不可用';
+        });
+    },
+    onLoadCharDataSuccess: function(data) {
+      state.writerReady = true;
+      state.strokeCount = data.strokes.length;
+      document.getElementById('modalStrokeCount').textContent = data.strokes.length + ' 画';
+      document.getElementById('loadingHint').style.display = 'none';
+      updateStrokeNameChips(data.strokes.length);
+      renderStrokeDots(data.strokes.length);
+
+      // 自动播放
+      setTimeout(() => doPlay(), 300);
+    },
+    onLoadCharDataError: function(reason) {
+      document.getElementById('loadingHint').textContent = '😢 笔顺数据加载失败，请检查网络';
+    }
+  });
+}
+
+// ============================================================
+//  笔画序号点 & 名称同步
+// ============================================================
+function renderStrokeDots(count) {
+  document.getElementById('strokeIndicators').innerHTML =
+    Array.from({ length: count }, (_, i) =>
+      `<div class="stroke-dot" id="dot${i}">${i+1}</div>`
+    ).join('');
+}
+
+function updateStrokeNameChips(count) { /* 已移除笔画名称展示 */ }
+
+function setDotState(idx, state_name) {
+  const dot = document.getElementById('dot' + idx);
+  if (!dot) return;
+  dot.classList.remove('current', 'done');
+  if (state_name) dot.classList.add(state_name);
+}
+
+function setChipActive(idx) { /* 已移除 */ }
+
+function syncIndicatorToStroke(strokeIdx) {
+  for (let i = 0; i < strokeIdx; i++) setDotState(i, 'done');
+  setDotState(strokeIdx, 'current');
+  document.getElementById('strokeStep').textContent =
+    `第 ${strokeIdx + 1}/${state.strokeCount} 笔`;
+}
+
+// ============================================================
+//  控制按钮
+// ============================================================
+
+function doPlay() {
+  if (!state.writerReady || !state.writer) {
+    showToast('⏳ 数据加载中，请稍候…');
+    return;
+  }
+  // 暂停逻辑：取消当前动画，保持已画笔画
+  if (state.isAnimating) {
+    try {
+      state.writer.pauseAnimation();
+    } catch(e) {
+      try { state.writer.cancelAnimation(); } catch(e2) {}
+    }
+    state.isAnimating = false;
+    document.getElementById('playBtn').textContent = '▶ 继续';
+    return;
+  }
+
+  // 播放/重新播放
+  state.currentStroke = -1;
+  state.isAnimating   = true;
+  document.getElementById('playBtn').textContent = '⏸ 暂停';
+  document.querySelectorAll('.stroke-dot').forEach(d => d.classList.remove('current','done'));
+  document.getElementById('strokeStep').textContent = '';
+
+  state.writer.animateCharacter({
+    onComplete: function() {
+      state.isAnimating   = false;
+      state.currentStroke = state.strokeCount - 1;
+      document.getElementById('playBtn').textContent = '▶ 重播';
+      document.getElementById('strokeStep').textContent = '完成！🎉';
+      for (let i = 0; i < state.strokeCount; i++) setDotState(i, 'done');
+      showToast('🎊 写完啦，真棒！');
+    },
+    onStrokeComplete: function(strokeNum, numStrokes) {
+      const idx = strokeNum - 1;
+      state.currentStroke = idx;
+      syncIndicatorToStroke(idx);
+    }
+  });
+}
+
+function doNext() {
+  if (!state.writerReady || !state.writer) {
+    showToast('⏳ 数据加载中，请稍候…');
+    return;
+  }
+  if (state.isAnimating) return;
+
+  const next = state.currentStroke + 1;
+  if (next >= state.strokeCount) {
+    showToast('🎉 所有笔画都写完啦！');
+    document.getElementById('strokeStep').textContent = '完成！🎉';
+    return;
+  }
+
+  state.currentStroke = next;
+  syncIndicatorToStroke(next);
+
+  state.writer.animateStroke(next, {
+    onComplete: function() {}
+  });
+}
+
+function doReset() {
+  if (!state.writer) {
+    showToast('⏳ 数据加载中，请稍候…');
+    return;
+  }
+  // 取消正在进行的动画
+  try { state.writer.cancelAnimation(); } catch(e) {}
+  try { state.writer.pauseAnimation(); } catch(e) {}
+
+  state.isAnimating   = false;
+  state.currentStroke = -1;
+  document.getElementById('playBtn').textContent      = '▶ 播放';
+  document.getElementById('strokeStep').textContent   = '';
+  document.querySelectorAll('.stroke-dot').forEach(d => d.classList.remove('current','done'));
+  // 隐藏已画笔画，重新显示轮廓
+  state.writer.hideCharacter({ duration: 0 });
+  setTimeout(() => {
+    state.writer.showOutline({ duration: 200 });
+  }, 50);
+}
+
+// ============================================================
+//  记住了 / 标记学会
+// ============================================================
+function markLearned() {
+  const char = state.currentChar;
+  if (!char) return;
+  if (!state.learned.includes(char)) {
+    state.learned.push(char);
+    localStorage.setItem('learnedChars', JSON.stringify(state.learned));
+    state.stars += 3;
+    localStorage.setItem('stars', state.stars);
+    updateStarDisplay();
+    spawnStars();
+    showToast('🌟 太棒了！获得3颗星！');
+    const remBtn = document.getElementById('rememberBtn');
+    remBtn.classList.add('learned-state');
+    remBtn.innerHTML = '<span>✅</span> 已学会！';
+    updateStats();
+    renderGrid();
+    setMascotMsg(`哇！你学会了"${char}"！继续加油吧！🎉`);
+  } else {
+    showToast('✅ 这个字你已经学会啦！');
+  }
+}
+
+// ============================================================
+//  星星爆炸特效
+// ============================================================
+function spawnStars() {
+  const burst = document.getElementById('starBurst');
+  const emojis = ['⭐','🌟','✨','💫','🎉','🎊'];
+  const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+  for (let i = 0; i < 14; i++) {
+    const el = document.createElement('div');
+    el.className = 'star-particle';
+    el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    const angle = (i / 14) * 360 + Math.random() * 30;
+    const dist  = 80 + Math.random() * 160;
+    el.style.left = cx + 'px';
+    el.style.top  = cy + 'px';
+    el.style.setProperty('--tx', Math.cos(angle * Math.PI / 180) * dist + 'px');
+    el.style.setProperty('--ty', (Math.sin(angle * Math.PI / 180) * dist - 80) + 'px');
+    el.style.setProperty('--tr', (Math.random() * 360 - 180) + 'deg');
+    el.style.animationDelay = (Math.random() * 0.3) + 's';
+    burst.appendChild(el);
+    setTimeout(() => el.remove(), 1600);
+  }
+}
+
+// ============================================================
+//  关闭弹层
+// ============================================================
+function closeModal() {
+  if (state.writer) {
+    try { state.writer.cancelAnimation(); } catch(e) {}
+  }
+  state.isAnimating = false;
+  document.getElementById('modalOverlay').classList.remove('active');
+}
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+// ============================================================
+//  Toast / 吉祥物
+// ============================================================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+function setMascotMsg(msg) {
+  document.getElementById('mascotMsg').textContent = msg;
+}
+
+// ============================================================
+//  底部 Tab 切换
+// ============================================================
+function switchTab(tab, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  const msgs = {
+    learn:  '点击汉字卡片开始学习笔顺！✏️',
+    review: '复习一下学过的字吧！🔁',
+    rank:   '看看谁的星星最多！🏆',
+    me:     '这是你的个人空间！🐼'
+  };
+  setMascotMsg(msgs[tab] || '');
+  if (tab !== 'learn') showToast('🚧 该功能即将推出！');
+}
+
+// ============================================================
+//  触摸下滑关闭弹层
+// ============================================================
+let touchStartY = 0;
+document.getElementById('modalSheet').addEventListener('touchstart', e => {
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+document.getElementById('modalSheet').addEventListener('touchmove', e => {
+  if (e.touches[0].clientY - touchStartY > 60) closeModal();
+}, { passive: true });
+
+// ============================================================
+//  启动
+// ============================================================
+init();
+</script>
+</body>
+</html>
