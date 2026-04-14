@@ -254,20 +254,20 @@
       box-shadow: 0 4px 16px rgba(255,140,66,0.25);
       flex-shrink: 0;
     }
-    .modal-char-info h2 { font-size: 20px; font-weight: 900; color: var(--dark); }
+    .modal-char-info {
+      display: flex; align-items: center; gap: 6px;
+    }
     .pinyin-tag {
       display: inline-block;
       background: #E8F6FF; color: var(--blue);
       font-size: 14px; font-weight: 700;
       padding: 2px 10px; border-radius: 10px;
-      margin-top: 4px;
     }
     .stroke-count-tag {
       display: inline-block;
       background: #FFF0F5; color: var(--pink);
       font-size: 13px; font-weight: 700;
       padding: 2px 10px; border-radius: 10px;
-      margin-top: 4px; margin-left: 6px;
     }
 
     /* ===== 笔顺动画画布区 ===== */
@@ -616,7 +616,6 @@
     <div class="modal-header">
       <div class="modal-char-big" id="modalCharBig">字</div>
       <div class="modal-char-info">
-        <h2 id="modalCharTitle">汉字</h2>
         <span class="pinyin-tag" id="modalPinyin">pīn yīn</span>
         <span class="stroke-count-tag" id="modalStrokeCount">x画</span>
       </div>
