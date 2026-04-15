@@ -109,6 +109,14 @@ python3 scripts/extract_learn_data.py
 - SVG 田字格、`localStorage` 持久化、Web Speech API 朗读（[`js/voice.js`](js/voice.js)）
 - 可选工程链：Vite、Vitest、ESLint、Prettier（[`package.json`](package.json)）
 
+## 语音朗读（浏览器说明）
+
+朗读依赖浏览器的 **Speech Synthesis（语音合成）**，无需服务器，但**不同环境差异很大**：
+
+- **推荐**：手机使用 **Safari（iOS）** 或 **Chrome（Android）** 等**系统浏览器**直接打开本站；请关闭静音、调高媒体音量，并在系统中安装/启用**中文**语音（部分机型在「设置 → 辅助功能 → 朗读内容 / 语音」或「语言与地区」中管理）。
+- **微信、QQ、微博等应用内浏览器**：常对网页语音有限制，可能出现**无声**；若遇此情况，请用右上角菜单在**系统浏览器**中打开。
+- 页面会在检测到**无中文语音**或**合成失败**时通过 Toast 提示；开发调试可在控制台查看 `Voice.getVoiceStatus()`（返回是否已加载语音列表、是否匹配到中文音色等）。
+
 ## 代码结构（概要）
 
 - [`js/progressStore.js`](js/progressStore.js)：星星、已学列表、连续日与最后一次活动日期的统一读写

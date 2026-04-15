@@ -399,7 +399,7 @@ function openChar(char) {
   // 自动朗读：须在用户点击的同步调用栈内触发 speechSynthesis，不能用 setTimeout，
   // 否则 Safari / iOS 与部分 Chrome 会按「非用户手势」静默拦截，导致无声音。
   if (typeof Voice !== 'undefined' && Voice.isSupported()) {
-    Voice.speakChar(char);
+    Voice.speakChar(char, { onIssue: handleVoiceIssue });
   }
 
   // 销毁旧 writer（如有），清空容器
@@ -723,6 +723,24 @@ function handleOverlayClick(e) {
 // 按钮发光动画时长（ms），与 CSS .voice-btn.speaking 动画时长保持一致
 const VOICE_BTN_ANIM_MS = 1200;
 
+/** 无中文音色提示仅在本会话提示一次，避免每次点字刷屏 */
+const voiceIssueState = { noZhWarned: false };
+
+function handleVoiceIssue(code) {
+  if (typeof showToast !== 'function') return;
+  if (code === 'no_zh_voice') {
+    if (voiceIssueState.noZhWarned) return;
+    voiceIssueState.noZhWarned = true;
+    showToast(
+      '未检测到中文朗读语音，请在系统中检查语言与辅助功能设置，或使用 Safari / Chrome 等系统浏览器打开本站'
+    );
+    return;
+  }
+  if (code === 'speak_error') {
+    showToast('朗读失败，请重试。若在微信等应用内打开，请改用系统浏览器或检查手机是否静音');
+  }
+}
+
 function voiceSpeakCurrent() {
   if (typeof Voice === 'undefined' || !Voice.isSupported()) {
     showToast('😢 当前浏览器不支持语音朗读');
@@ -737,5 +755,5 @@ function voiceSpeakCurrent() {
     btn.classList.add('speaking');
     setTimeout(() => btn.classList.remove('speaking'), VOICE_BTN_ANIM_MS);
   }
-  Voice.speakChar(char);
+  Voice.speakChar(char, { onIssue: handleVoiceIssue });
 }

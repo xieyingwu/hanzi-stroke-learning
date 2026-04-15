@@ -50,14 +50,41 @@ const Voice = (() => {
   }
 
   /**
+   * 语音就绪情况（供调试或 UI；voices 在部分浏览器中异步出现）
+   * @returns {{ supported: boolean, voicesLoaded: boolean, hasZhVoice: boolean, voiceCount: number }}
+   */
+  function getVoiceStatus() {
+    if (!synth) {
+      return { supported: false, voicesLoaded: false, hasZhVoice: false, voiceCount: 0 };
+    }
+    const voices = synth.getVoices();
+    pickVoice();
+    return {
+      supported: true,
+      voicesLoaded: voices.length > 0,
+      hasZhVoice: !!zhVoice,
+      voiceCount: voices.length
+    };
+  }
+
+  /**
    * 朗读一段文字
    * @param {string} text   - 要朗读的文字
    * @param {number} [rate] - 语速，默认 0.85
+   * @param {{ onIssue?: (code: 'no_zh_voice'|'speak_error', ev?: SpeechSynthesisErrorEvent) => void }} [options]
    */
-  function speak(text, rate) {
+  function speak(text, rate, options) {
+    const opts = options && typeof options === 'object' ? options : {};
+    const onIssue = typeof opts.onIssue === 'function' ? opts.onIssue : null;
+
     if (!synth || !text) return;
     // 语音列表在部分浏览器中异步就绪，每次朗读前再选一次音色
     pickVoice();
+    const voices = synth.getVoices();
+    // 列表已就绪但仍无中文音色时，朗读质量不可预期，提示用户（仍尝试用 lang 朗读）
+    if (voices.length > 0 && !zhVoice && onIssue) {
+      onIssue('no_zh_voice');
+    }
     try {
       if (synth.paused) synth.resume();
     } catch (e) { /* ignore */ }
@@ -71,18 +98,27 @@ const Voice = (() => {
     if (zhVoice) utt.voice = zhVoice;
     utt.onerror = function (ev) {
       console.warn('SpeechSynthesis error:', ev && ev.error ? ev.error : ev);
+      if (onIssue) onIssue('speak_error', ev);
     };
     synth.speak(utt);
   }
 
-  /** 朗读单个汉字（稍慢语速，听清楚） */
-  function speakChar(char) {
-    speak(char, 0.8);
+  /**
+   * 朗读单个汉字（稍慢语速，听清楚）
+   * @param {string} char
+   * @param {{ onIssue?: (code: 'no_zh_voice'|'speak_error', ev?: SpeechSynthesisErrorEvent) => void }} [options]
+   */
+  function speakChar(char, options) {
+    speak(char, 0.8, options);
   }
 
-  /** 朗读拼音（拼音本身含声调字母，直接读文字即可） */
-  function speakPinyin(pinyin) {
-    speak(pinyin, 0.75);
+  /**
+   * 朗读拼音（拼音本身含声调字母，直接读文字即可）
+   * @param {string} pinyin
+   * @param {{ onIssue?: (code: 'no_zh_voice'|'speak_error', ev?: SpeechSynthesisErrorEvent) => void }} [options]
+   */
+  function speakPinyin(pinyin, options) {
+    speak(pinyin, 0.75, options);
   }
 
   /** 是否支持语音合成 */
@@ -92,5 +128,5 @@ const Voice = (() => {
 
   init();
 
-  return { speak, speakChar, speakPinyin, isSupported };
+  return { speak, speakChar, speakPinyin, isSupported, getVoiceStatus };
 })();
