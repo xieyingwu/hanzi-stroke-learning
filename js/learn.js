@@ -3664,6 +3664,11 @@ function openChar(char) {
   // 先展示弹层
   document.getElementById('modalOverlay').classList.add('active');
 
+  // 自动朗读汉字（延迟等弹层动画完成后再播报）
+  if (typeof Voice !== 'undefined' && Voice.isSupported()) {
+    setTimeout(() => Voice.speakChar(char), 200); // 200ms 等待弹层滑入动画（transition: 0.45s bounce）
+  }
+
   // 销毁旧 writer（如有），清空容器
   const container = document.getElementById('hanziWriterContainer');
   container.innerHTML = '';
@@ -3909,8 +3914,35 @@ function closeModal() {
     try { state.writer.cancelAnimation(); } catch(e) {}
   }
   state.isAnimating = false;
+  // 关闭时停止语音
+  if (typeof Voice !== 'undefined' && Voice.isSupported()) {
+    window.speechSynthesis && window.speechSynthesis.cancel();
+  }
   document.getElementById('modalOverlay').classList.remove('active');
 }
 function handleOverlayClick(e) {
   if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+// ============================================================
+//  语音朗读入口（供 HTML onclick 调用）
+// ============================================================
+// 按钮发光动画时长（ms），与 CSS .voice-btn.speaking 动画时长保持一致
+const VOICE_BTN_ANIM_MS = 1200;
+
+function voiceSpeakCurrent() {
+  if (typeof Voice === 'undefined' || !Voice.isSupported()) {
+    showToast('😢 当前浏览器不支持语音朗读');
+    return;
+  }
+  const char = state.currentChar;
+  if (!char) return;
+
+  // 播放动效
+  const btn = document.getElementById('voiceBtn');
+  if (btn) {
+    btn.classList.add('speaking');
+    setTimeout(() => btn.classList.remove('speaking'), VOICE_BTN_ANIM_MS);
+  }
+  Voice.speakChar(char);
 }

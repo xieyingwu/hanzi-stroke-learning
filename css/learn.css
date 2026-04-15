@@ -444,6 +444,52 @@
 .stat-num { font-size: 24px; font-weight: 900; line-height: 1; }
 .stat-label { font-size: 11px; color: var(--mid); margin-top: 3px; font-weight: 600; }
 
+.modal-char-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.char-tags-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ===== 语音朗读按钮 ===== */
+.voice-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 2px solid #C77DFF;
+  background: linear-gradient(135deg, #F5E8FF, #EDD5FF);
+  color: #9B4FCC;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s var(--bounce);
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(199,125,255,0.25);
+}
+.voice-btn:active {
+  transform: scale(0.91);
+  box-shadow: 0 1px 6px rgba(199,125,255,0.2);
+}
+.voice-btn.speaking {
+  background: linear-gradient(135deg, #C77DFF, #9B4FCC);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(199,125,255,0.5);
+  /* 总动画时长 1200ms（与 JS VOICE_BTN_ANIM_MS 对齐），alternate 双程 = 600ms/次 */
+  animation: voicePulse 0.6s ease-in-out infinite alternate;
+}
+@keyframes voicePulse {
+  from { box-shadow: 0 4px 14px rgba(199,125,255,0.4); }
+  to   { box-shadow: 0 4px 22px rgba(199,125,255,0.8); }
+}
+.voice-btn-label { font-size: 13px; }
+
 /* ===== 关闭按钮 ===== */
 .close-btn {
   position: absolute; top: 16px; right: 16px;
