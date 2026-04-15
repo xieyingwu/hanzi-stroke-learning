@@ -35,6 +35,11 @@ const Voice = (() => {
    */
   function speak(text, rate) {
     if (!synth || !text) return;
+    // 语音列表在部分浏览器中异步就绪，每次朗读前再选一次音色
+    pickVoice();
+    try {
+      if (synth.paused) synth.resume();
+    } catch (e) { /* ignore */ }
     synth.cancel();
     const utt  = new SpeechSynthesisUtterance(text);
     utt.lang   = 'zh-CN';

@@ -189,9 +189,10 @@ function openChar(char) {
   // 先展示弹层
   document.getElementById('modalOverlay').classList.add('active');
 
-  // 自动朗读汉字（延迟等弹层动画完成后再播报）
+  // 自动朗读：须在用户点击的同步调用栈内触发 speechSynthesis，不能用 setTimeout，
+  // 否则 Safari / iOS 与部分 Chrome 会按「非用户手势」静默拦截，导致无声音。
   if (typeof Voice !== 'undefined' && Voice.isSupported()) {
-    setTimeout(() => Voice.speakChar(char), 200); // 200ms 等待弹层滑入动画（transition: 0.45s bounce）
+    Voice.speakChar(char);
   }
 
   // 销毁旧 writer（如有），清空容器
