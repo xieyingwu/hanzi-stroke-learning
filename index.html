@@ -4,15 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>🐼 汉字笔顺学堂</title>
-  <!-- Hanzi Writer — 权威笔顺数据库 -->
-  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+  <!-- 中文字体：Noto Sans SC（兼容无中文字体的环境） -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <!-- Hanzi Writer — 权威笔顺数据库（本地备用，无网络时自动降级） -->
+  <script src="js/hanzi-writer.min.js"></script>
   <!-- 样式 -->
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/learn.css">
   <link rel="stylesheet" href="css/me.css">
 </head>
-<body>
-
 <body>
 
 <!-- 顶部导航 -->
@@ -192,8 +194,13 @@
     <div class="modal-header">
       <div class="modal-char-big" id="modalCharBig">字</div>
       <div class="modal-char-info">
-        <span class="pinyin-tag" id="modalPinyin">pīn yīn</span>
-        <span class="stroke-count-tag" id="modalStrokeCount">x画</span>
+        <div class="char-tags-row">
+          <span class="pinyin-tag" id="modalPinyin">pīn yīn</span>
+          <span class="stroke-count-tag" id="modalStrokeCount">x画</span>
+        </div>
+        <button class="voice-btn" id="voiceBtn" onclick="voiceSpeakCurrent()" title="朗读汉字">
+          🔊 <span class="voice-btn-label">朗读</span>
+        </button>
       </div>
     </div>
 
@@ -246,12 +253,8 @@
 <!-- 星星特效层 -->
 <div class="star-burst" id="starBurst"></div>
 
-<!-- Toast -->
-<div class="toast" id="toast"></div>
-<!-- 星星特效层 -->
-<div class="star-burst" id="starBurst"></div>
-
 <!-- 脚本（顺序重要） -->
+<script src="js/voice.js"></script>
 <script src="js/learn.js"></script>
 <script src="js/me.js"></script>
 <script src="js/app.js"></script>
