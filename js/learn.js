@@ -3,7 +3,7 @@ let HANZI_META = {};
 let CATEGORIES = [];
 
 async function loadLearnData() {
-  const base = new URL(".", window.location.href);
+  const base = typeof getAppBaseUrl === "function" ? getAppBaseUrl() : new URL(".", window.location.href);
   const metaUrl = new URL("data/hanzi-meta.json", base);
   const catUrl = new URL("data/categories.json", base);
   const [rm, rc] = await Promise.all([fetch(metaUrl), fetch(catUrl)]);

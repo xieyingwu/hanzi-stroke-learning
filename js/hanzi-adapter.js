@@ -4,7 +4,8 @@
 const HanziAdapter = (function () {
   function buildCharDataLoader() {
     return function (char, onComplete) {
-      const localUrl = 'hanzi-data/' + encodeURIComponent(char) + '.json';
+      var base = typeof getAppBaseUrl === "function" ? getAppBaseUrl() : new URL(".", window.location.href);
+      var localUrl = new URL("hanzi-data/" + encodeURIComponent(char) + ".json", base).href;
       const cdnUrl =
         'https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0/' +
         encodeURIComponent(char) +
