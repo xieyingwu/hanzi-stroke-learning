@@ -66,7 +66,11 @@ const HanziAdapter = (function () {
     return shardInflight[shardId];
   }
 
-  function loadLegacy(char, onComplete) {
+  /**
+   * Hanzi Writer 3.x：charDataLoader(char, resolve, reject)
+   * 失败必须 reject，否则加载 Promise 永不结束，弹层不会打开。
+   */
+  function loadLegacy(char, resolve, reject) {
     var base = getBase();
     var localUrl = new URL('hanzi-data/' + encodeURIComponent(char) + '.json', base).href;
     var cdnUrl =
@@ -90,17 +94,16 @@ const HanziAdapter = (function () {
         });
       })
       .then(function (data) {
-        onComplete(data);
+        resolve(data);
       })
       .catch(function (err) {
         console.warn('笔顺数据加载失败:', char, err);
-        var hint = document.getElementById('loadingHint');
-        if (hint) hint.textContent = '该字数据暂不可用';
+        reject(err instanceof Error ? err : new Error(String(err)));
       });
   }
 
   function buildCharDataLoader() {
-    return function (char, onComplete) {
+    return function (char, resolve, reject) {
       var base = getBase();
       fetchShardMap(base)
         .then(function (map) {
@@ -109,7 +112,7 @@ const HanziAdapter = (function () {
             return loadShardPayload(base, sid).then(function (payload) {
               var data = payload[char];
               if (data) {
-                onComplete(data);
+                resolve(data);
                 return;
               }
               throw new Error('char missing in shard');
@@ -118,7 +121,7 @@ const HanziAdapter = (function () {
           throw new Error('no bundled stroke map');
         })
         .catch(function () {
-          loadLegacy(char, onComplete);
+          loadLegacy(char, resolve, reject);
         });
     };
   }

@@ -398,8 +398,13 @@ function openChar(char) {
 
   // 自动朗读：须在用户点击的同步调用栈内触发 speechSynthesis，不能用 setTimeout，
   // 否则 Safari / iOS 与部分 Chrome 会按「非用户手势」静默拦截，导致无声音。
+  // 优先读字表中的拼音（与多音字标注一致）；无拼音时再读单字。
   if (typeof Voice !== 'undefined' && Voice.isSupported()) {
-    Voice.speakChar(char, { onIssue: handleVoiceIssue });
+    if (meta.pinyin && String(meta.pinyin).trim()) {
+      Voice.speakPinyin(meta.pinyin, { onIssue: handleVoiceIssue });
+    } else {
+      Voice.speakChar(char, { onIssue: handleVoiceIssue });
+    }
   }
 
   // 销毁旧 writer（如有），清空容器
@@ -755,5 +760,10 @@ function voiceSpeakCurrent() {
     btn.classList.add('speaking');
     setTimeout(() => btn.classList.remove('speaking'), VOICE_BTN_ANIM_MS);
   }
-  Voice.speakChar(char, { onIssue: handleVoiceIssue });
+  const meta = HANZI_META[char];
+  if (meta && meta.pinyin && String(meta.pinyin).trim()) {
+    Voice.speakPinyin(meta.pinyin, { onIssue: handleVoiceIssue });
+  } else {
+    Voice.speakChar(char, { onIssue: handleVoiceIssue });
+  }
 }

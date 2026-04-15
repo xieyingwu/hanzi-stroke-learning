@@ -13,8 +13,9 @@ const Voice = (() => {
     if (!synth) return;
     const voices = synth.getVoices();
     zhVoice =
-      voices.find(v => v.lang === 'zh-CN' && /普通话|Mandarin|Ting-Ting|Meijia|Lili/.test(v.name)) ||
+      voices.find(v => v.lang === 'zh-CN' && /普通话|Mandarin|Ting-Ting|Meijia|Lili|Yu-shu|Yue/.test(v.name)) ||
       voices.find(v => v.lang === 'zh-CN') ||
+      voices.find(v => v.lang === 'zh-Hans' || v.lang === 'cmn-CN') ||
       voices.find(v => v.lang.startsWith('zh')) ||
       null;
   }
