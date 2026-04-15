@@ -3702,12 +3702,17 @@ function createWriter(char) {
     strokeAnimationSpeed: 1,
     delayBetweenStrokes: 400,
     charDataLoader: function(char, onComplete) {
-      const url = `https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0/${encodeURIComponent(char)}.json`;
-      fetch(url)
+      const localUrl = `hanzi-data/${encodeURIComponent(char)}.json`;
+      const cdnUrl   = `https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0/${encodeURIComponent(char)}.json`;
+      fetch(localUrl)
         .then(r => {
-          if (!r.ok) throw new Error('HTTP ' + r.status);
+          if (!r.ok) throw new Error('local miss');
           return r.json();
         })
+        .catch(() => fetch(cdnUrl).then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        }))
         .then(data => onComplete(data))
         .catch(err => {
           console.warn('笔顺数据加载失败:', char, err);

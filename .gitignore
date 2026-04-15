@@ -1,0 +1,7 @@
+# 笔顺数据文件（本地离线用，体积过大不纳入版本控制）
+# 运行 `npm pack hanzi-writer-data@2.0` 并解压到此目录可离线使用
+hanzi-data/
+
+# 系统文件
+.DS_Store
+Thumbs.db
