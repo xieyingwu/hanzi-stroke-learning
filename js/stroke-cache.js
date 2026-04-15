@@ -12,27 +12,38 @@ const StrokeCache = (function () {
     var u = typeof url === 'string' ? url : String(url.href || url);
     if (inflight[u]) return inflight[u];
 
+    function plainFetch() {
+      return fetch(u, { credentials: 'same-origin' });
+    }
+
     var inner;
     if (!('caches' in window)) {
-      inner = fetch(u, { credentials: 'same-origin' });
+      inner = plainFetch();
     } else {
-      inner = caches.open(CACHE_NAME).then(function (cache) {
-        return cache.match(u).then(function (hit) {
-          if (hit) return hit;
-          return fetch(u, { credentials: 'same-origin' }).then(function (resp) {
-            if (resp && resp.ok) {
-              try {
-                if (resp.type === 'basic' || resp.type === 'cors') {
-                  cache.put(u, resp.clone());
+      inner = caches
+        .open(CACHE_NAME)
+        .then(function (cache) {
+          return cache.match(u).then(function (hit) {
+            if (hit) return hit;
+            return plainFetch().then(function (resp) {
+              if (resp && resp.ok) {
+                try {
+                  if (resp.type === 'basic' || resp.type === 'cors') {
+                    cache.put(u, resp.clone());
+                  }
+                } catch (_) {
+                  /* 跨域 opaque、存储配额等不可缓存时忽略 */
                 }
-              } catch (_) {
-                /* 跨域 opaque 等不可缓存时忽略 */
               }
-            }
-            return resp;
+              return resp;
+            });
           });
+        })
+        .catch(function (err) {
+          /* 部分 WebView/隐私模式下 Cache API 不可用，降级为直接 fetch，避免整段预热立即失败 */
+          console.warn('StrokeCache: Cache API 不可用，改用直接请求', err);
+          return plainFetch();
         });
-      });
     }
 
     inflight[u] = Promise.resolve(inner).finally(function () {

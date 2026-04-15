@@ -288,7 +288,8 @@ function showStrokeAssetBarDone(warmResult) {
         subEl.textContent =
           '部分分片失败（已下载的会保留在内存与浏览器缓存）。请点击「继续下载」从断点补齐，无需从头开始。';
       } else if (warmResult && warmResult.reason === 'no_map') {
-        subEl.textContent = '未找到笔顺分片映射（stroke-shard-map.json）。请确认已执行构建并部署 stroke-data。';
+        subEl.textContent =
+          '未加载到笔顺映射（stroke-shard-map.json）。请尽量用系统浏览器打开；若在微信内打开，可点右上角用 Safari/Chrome 打开。部署需包含 dist/stroke-data。';
       } else {
         subEl.textContent =
           '请检查网络后点击「继续下载」重试；已成功的分片不会重复下载。';

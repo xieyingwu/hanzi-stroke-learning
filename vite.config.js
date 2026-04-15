@@ -89,12 +89,29 @@ function serveStrokeDataDir() {
 // GitHub Pages 项目站路径为 /<仓库名>/，通过环境变量 VITE_BASE_PATH 在 CI 中传入
 const pagesBase = process.env.VITE_BASE_PATH || '/';
 
+/** 注入与 Vite base 一致的 meta，供 getAppBaseUrl() 优先使用，避免微信等内置浏览器 pathname 异常导致 stroke-data 404 */
+function injectAppBaseMeta() {
+  return {
+    name: 'inject-app-base-meta',
+    transformIndexHtml(html) {
+      const escaped = String(pagesBase).replace(/"/g, '&quot;');
+      if (html.includes('name="app-base-path"')) return html;
+      return html.replace('<head>', `<head>\n  <meta name="app-base-path" content="${escaped}">`);
+    },
+  };
+}
+
 export default defineConfig({
   base: pagesBase,
   root: '.',
   appType: 'mpa',
   publicDir: false,
-  plugins: [serveProjectDataDir(), serveStrokeDataDir(), copyDataToDist()],
+  plugins: [
+    injectAppBaseMeta(),
+    serveProjectDataDir(),
+    serveStrokeDataDir(),
+    copyDataToDist(),
+  ],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
