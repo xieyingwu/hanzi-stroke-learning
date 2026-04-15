@@ -9,7 +9,7 @@
 | [index.html](index.html) | 唯一页面入口 |
 | [data/hanzi-meta.json](data/hanzi-meta.json) | 约 **3500** 个汉字的拼音、释义（元数据） |
 | [data/categories.json](data/categories.json) | **17** 条分类（含「全部」+ 16 类主题/分级字表） |
-| `js/hanzi-writer.min.js` | Hanzi Writer 库；若仓库中无此文件，请从 [hanziwriter.org](https://hanziwriter.org/) 或 npm 包 `hanzi-writer` 中取构建后的脚本，并保持与 [index.html](index.html) 中引用路径一致。 |
+| Hanzi Writer 脚本 | [index.html](index.html) 默认使用 jsDelivr CDN；也可改为本地 `js/hanzi-writer.min.js`。 |
 
 分类含义与规模与旧版「3500 字 / 16 类主题」一致：「全部」汇总元数据中的全部字头。
 
@@ -42,6 +42,16 @@ npm run preview
 ```
 
 构建结果在 `dist/`，字表目录会一并复制到 `dist/data/`。
+
+## GitHub Pages 部署
+
+本仓库含 [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)：向 `main` 推送后会执行 `vite build`（`VITE_BASE_PATH=/hanzi-stroke-learning/`，与默认仓库页路径一致）并发布到 GitHub Pages。
+
+1. 在 GitHub 打开本仓库 **Settings → Pages**。
+2. **Build and deployment** 的 **Source** 选择 **GitHub Actions**（不要选 branch）。
+3. 推送 `main` 后，在 **Actions** 中查看 **Deploy GitHub Pages** 是否成功。
+
+站点地址一般为：`https://<你的用户名>.github.io/hanzi-stroke-learning/`。若你**重命名了仓库**，请同步修改工作流里的 `VITE_BASE_PATH`（或改为与你的仓库名一致的路径前缀）。
 
 ## 进度与存储
 

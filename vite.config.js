@@ -46,7 +46,11 @@ function copyDataToDist() {
   };
 }
 
+// GitHub Pages 项目站路径为 /<仓库名>/，通过环境变量 VITE_BASE_PATH 在 CI 中传入
+const pagesBase = process.env.VITE_BASE_PATH || '/';
+
 export default defineConfig({
+  base: pagesBase,
   root: '.',
   appType: 'mpa',
   publicDir: false,

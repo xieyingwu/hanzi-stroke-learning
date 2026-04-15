@@ -24,23 +24,50 @@ function syncStateFromProgressStore() {
 function bindLearnDelegatedEvents() {
   var catList = document.getElementById("categoryList");
   var grid = document.getElementById("hanziGrid");
+  // 移动端（尤其 iOS Safari）在 touch 后约 300ms 才触发 click，语音合成不再视为用户手势会静音。
+  // 使用 pointerup：手指抬起时仍在同一次手势内，与 Voice.speakChar 同步调用配套。
+  var usePointer = typeof window.PointerEvent !== "undefined";
+
   if (catList && !catList._delegBound) {
     catList._delegBound = true;
-    catList.addEventListener("click", function (e) {
+    function onCat(e) {
       var btn = e.target.closest("[data-cat-id]");
       if (!btn) return;
       e.preventDefault();
       selectCategory(btn.getAttribute("data-cat-id"));
-    });
+    }
+    if (usePointer) {
+      catList.addEventListener("pointerup", function (e) {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        onCat(e);
+      });
+    } else {
+      catList.addEventListener("click", onCat);
+    }
   }
   if (grid && !grid._delegBound) {
     grid._delegBound = true;
-    grid.addEventListener("click", function (e) {
+    var lastOpenChar = "";
+    var lastOpenTs = 0;
+    function openFromCard(e) {
       var card = e.target.closest("[data-char]");
       if (!card) return;
       var raw = card.getAttribute("data-char") || "";
-      openChar(decodeURIComponent(raw));
-    });
+      var ch = decodeURIComponent(raw);
+      var now = Date.now();
+      if (ch === lastOpenChar && now - lastOpenTs < 450) return;
+      lastOpenChar = ch;
+      lastOpenTs = now;
+      openChar(ch);
+    }
+    if (usePointer) {
+      grid.addEventListener("pointerup", function (e) {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        openFromCard(e);
+      });
+    } else {
+      grid.addEventListener("click", openFromCard);
+    }
   }
 }
 
