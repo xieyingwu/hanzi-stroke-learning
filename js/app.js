@@ -55,4 +55,14 @@ document.getElementById('modalSheet').addEventListener('touchmove', e => {
 // ============================================================
 //  启动
 // ============================================================
-init();
+Promise.resolve(typeof init === 'function' ? init() : null).catch(function (err) {
+  console.error(err);
+  var grid = document.getElementById('hanziGrid');
+  if (grid) {
+    grid.innerHTML =
+      '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📂</div><p>字表加载失败，请使用 HTTP 本地服务打开（见 README）。</p></div>';
+  }
+  if (typeof showToast === 'function') {
+    showToast('字表加载失败');
+  }
+});
