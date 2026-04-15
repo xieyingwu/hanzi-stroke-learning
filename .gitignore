@@ -2,6 +2,9 @@
 # 运行 `npm pack hanzi-writer-data@2.0` 并解压到此目录可离线使用
 hanzi-data/
 
+# 构建生成的笔顺分片（约数 MB，CI/本地 build 时生成；亦可提交以跳过构建步骤）
+stroke-data/
+
 node_modules/
 dist/
 

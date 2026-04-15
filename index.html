@@ -52,21 +52,31 @@
     </div>
   </div>
 
-  <!-- 进度 -->
-  <div class="progress-section">
-    <div class="progress-label">
-      <span>🌟 今日进度</span>
-      <span id="progressText">0%</span>
+  <!-- 今日进度 + 选择分类（同一吸顶条，滚动时留在顶栏下方便于切分类） -->
+  <div class="learn-sticky-toolbar">
+    <div class="progress-section">
+      <div class="progress-label">
+        <span>🌟 今日进度</span>
+        <span id="progressText">0/10</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      </div>
     </div>
-    <div class="progress-bar">
-      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    <div class="category-section">
+      <div class="section-title">📚 选择分类</div>
+      <div class="category-scroll" id="categoryList"></div>
+      <div class="category-progress-wrap" id="categoryProgressWrap" hidden>
+        <div class="category-progress-label">
+          <span id="categoryProgressTitle">当前分类</span>
+          <span id="categoryProgressFraction">0/0</span>
+        </div>
+        <div class="category-progress-bar">
+          <div class="category-progress-fill" id="categoryProgressFill" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="learned-sub-scroll" id="learnedSubRow" style="display:none" aria-label="已学习子分类"></div>
     </div>
-  </div>
-
-  <!-- 分类 -->
-  <div class="category-section">
-    <div class="section-title">📚 选择分类</div>
-    <div class="category-scroll" id="categoryList"></div>
   </div>
 
   <!-- 汉字网格 -->
@@ -103,16 +113,20 @@
   <div class="me-login" id="meLogin">
     <div class="login-avatar">🐼</div>
     <div class="login-title">欢迎来到汉字学堂</div>
-    <div class="login-subtitle">本地演示用登录，数据不上传云端；密码不会被保存。学习进度与星星见首页统计。</div>
+    <div class="login-subtitle" id="loginSubtitle">本地演示用登录，数据不上传云端。学习进度与星星见首页统计。</div>
     <div class="login-form">
       <div class="form-group">
         <label>📱 手机号</label>
-        <input class="form-input" id="loginPhone" type="tel" maxlength="11" placeholder="请输入手机号">
+        <input class="form-input" id="loginPhone" type="tel" maxlength="11" placeholder="请输入手机号" autocomplete="username">
       </div>
       <div class="form-group">
         <label>🔑 密码</label>
-        <input class="form-input" id="loginPassword" type="password" placeholder="请输入密码（至少6位）">
+        <input class="form-input" id="loginPassword" type="password" placeholder="请输入密码（至少6位）" autocomplete="current-password">
       </div>
+      <label class="login-remember">
+        <input type="checkbox" id="loginRememberPassword">
+        <span>记住密码（仅保存在本机，用于退出登录时校验）</span>
+      </label>
       <button class="btn-primary" onclick="handleLogin()">登 录</button>
     </div>
   </div>
@@ -141,7 +155,8 @@
     <!-- 个人信息卡片 -->
     <div class="profile-card">
       <div class="profile-header">
-        <div class="profile-avatar" id="profileAvatar">🐼</div>
+        <input type="file" id="avatarFileInput" class="visually-hidden" accept="image/*">
+        <button type="button" class="profile-avatar profile-avatar-btn" id="profileAvatar" aria-label="更换头像">🐼</button>
         <div class="profile-info">
           <div class="profile-name" id="profileName">用户</div>
           <div class="profile-phone" id="profilePhone">138****0000</div>
@@ -153,33 +168,163 @@
         <span class="info-label">👤 昵称</span>
         <span><span class="info-value" id="infoNickname">未设置</span><span class="info-arrow">›</span></span>
       </div>
-      <div class="info-row" onclick="openEditField('gender')">
+      <div class="info-row" onclick="openGenderModal()">
         <span class="info-label">⚧ 性别</span>
         <span><span class="info-value" id="infoGender">未设置</span><span class="info-arrow">›</span></span>
       </div>
-      <div class="info-row" onclick="openEditField('age')">
-        <span class="info-label">🎂 年龄</span>
-        <span><span class="info-value" id="infoAge">未设置</span><span class="info-arrow">›</span></span>
+      <div class="info-row" onclick="openBirthWheelModal()">
+        <span class="info-label">🎂 出生日期</span>
+        <span><span class="info-value" id="infoBirth">未设置</span><span class="info-arrow">›</span></span>
       </div>
-      <div class="info-row" onclick="openEditField('bio')">
-        <span class="info-label">💬 个性签名</span>
-        <span><span class="info-value" id="infoBio">未设置</span><span class="info-arrow">›</span></span>
+      <div class="info-row info-row--bio info-row--bio-empty" id="infoRowBio" onclick="openBioModal()">
+        <div class="info-row-bio-wrap">
+          <div class="info-row-bio-head">
+            <span class="info-label">💬 个性签名</span>
+            <span class="info-row-bio-trail">
+              <span class="info-value info-bio-inline" id="infoBio">未设置</span>
+              <span class="info-arrow">›</span>
+            </span>
+          </div>
+          <div class="info-bio-detail" id="infoBioDetail" hidden></div>
+        </div>
+      </div>
+      <div class="info-section-title">📖 学习设置</div>
+      <div class="info-row" onclick="openDailyGoalModal()">
+        <span class="info-label">🎯 每日学习目标</span>
+        <span><span class="info-value" id="infoDailyGoal">10 个/天</span><span class="info-arrow">›</span></span>
       </div>
       <button class="btn-logout" onclick="handleLogout()">🚪 退出登录</button>
     </div>
   </div>
 </div>
 
-<!-- ===== 我的 - 编辑信息弹窗 ===== -->
-<div class="edit-modal-overlay" id="editModalOverlay">
-  <div class="edit-modal-sheet">
+<!-- ===== 我的 - 编辑信息弹窗（居中） ===== -->
+<div class="me-modal-overlay" id="editModalOverlay">
+  <div class="me-modal-box" role="dialog" aria-modal="true">
     <div class="edit-title" id="editModalTitle">编辑昵称</div>
     <div class="form-group" id="editFormGroup">
       <input class="form-input" id="editInput" type="text" placeholder="请输入内容">
     </div>
     <div class="edit-actions">
-      <button class="btn-cancel-edit" onclick="closeEditModal()">取消</button>
-      <button class="btn-save-edit" onclick="saveEditField()">保存</button>
+      <button type="button" class="btn-cancel-edit" onclick="closeEditModal()">取消</button>
+      <button type="button" class="btn-save-edit" onclick="saveEditField()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 我的 - 性别选择（居中） ===== -->
+<div class="me-modal-overlay" id="genderModalOverlay">
+  <div class="me-modal-box me-modal-box--sm" role="dialog" aria-modal="true">
+    <div class="edit-title">选择性别</div>
+    <div class="gender-options">
+      <button type="button" class="gender-option-btn" data-gender="男" onclick="saveGender('男')">男</button>
+      <button type="button" class="gender-option-btn" data-gender="女" onclick="saveGender('女')">女</button>
+    </div>
+    <button type="button" class="btn-cancel-full" onclick="closeGenderModal()">取消</button>
+  </div>
+</div>
+
+<!-- ===== 我的 - 出生日期（年月日滚轮） ===== -->
+<div class="me-modal-overlay" id="birthWheelOverlay">
+  <div class="me-modal-box me-modal-box--birth" role="dialog" aria-modal="true" aria-labelledby="birthWheelTitle">
+    <div class="edit-title" id="birthWheelTitle">选择出生日期</div>
+    <div class="birth-wheel-picker" id="birthWheelPicker">
+      <div class="birth-wheel-col">
+        <div class="birth-wheel-col-label">年</div>
+        <div class="birth-wheel-mask">
+          <div class="birth-wheel-highlight"></div>
+          <div class="birth-wheel-scroll" id="birthWheelYear" tabindex="0">
+            <div class="birth-wheel-scroll-inner" id="birthWheelYearInner"></div>
+          </div>
+        </div>
+      </div>
+      <div class="birth-wheel-col">
+        <div class="birth-wheel-col-label">月</div>
+        <div class="birth-wheel-mask">
+          <div class="birth-wheel-highlight"></div>
+          <div class="birth-wheel-scroll" id="birthWheelMonth" tabindex="0">
+            <div class="birth-wheel-scroll-inner" id="birthWheelMonthInner"></div>
+          </div>
+        </div>
+      </div>
+      <div class="birth-wheel-col">
+        <div class="birth-wheel-col-label">日</div>
+        <div class="birth-wheel-mask">
+          <div class="birth-wheel-highlight"></div>
+          <div class="birth-wheel-scroll" id="birthWheelDay" tabindex="0">
+            <div class="birth-wheel-scroll-inner" id="birthWheelDayInner"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="edit-actions">
+      <button type="button" class="btn-cancel-edit" onclick="closeBirthWheelModal()">取消</button>
+      <button type="button" class="btn-save-edit" onclick="saveBirthFromWheel()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 我的 - 每日学习目标（数字滚轮） ===== -->
+<div class="me-modal-overlay" id="dailyGoalModalOverlay">
+  <div class="me-modal-box me-modal-box--daily-goal" role="dialog" aria-modal="true" aria-labelledby="dailyGoalModalTitle">
+    <div class="edit-title" id="dailyGoalModalTitle">每日学习目标</div>
+    <p class="daily-goal-hint" id="dailyGoalHint"></p>
+    <div class="daily-goal-picker">
+      <div class="birth-wheel-col birth-wheel-col--single">
+        <div class="birth-wheel-col-label">个数</div>
+        <div class="birth-wheel-mask">
+          <div class="birth-wheel-highlight"></div>
+          <div class="birth-wheel-scroll" id="dailyGoalWheelScroll" tabindex="0">
+            <div class="birth-wheel-scroll-inner" id="dailyGoalWheelInner"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="edit-actions">
+      <button type="button" class="btn-cancel-edit" onclick="closeDailyGoalModal()">取消</button>
+      <button type="button" class="btn-save-edit" onclick="saveDailyGoal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 我的 - 个性签名（居中、多行） ===== -->
+<div class="me-modal-overlay" id="bioModalOverlay">
+  <div class="me-modal-box" role="dialog" aria-modal="true">
+    <div class="edit-title">编辑个性签名</div>
+    <p class="bio-hint">最多 100 字（含标点与换行）</p>
+    <textarea class="form-textarea" id="bioTextarea" maxlength="100" rows="6" placeholder="写点什么介绍自己吧"></textarea>
+    <div class="bio-counter"><span id="bioCharCount">0</span> / 100</div>
+    <div class="edit-actions">
+      <button type="button" class="btn-cancel-edit" onclick="closeBioModal()">取消</button>
+      <button type="button" class="btn-save-edit" onclick="saveBio()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 我的 - 退出登录（记住密码：输入密码） ===== -->
+<div class="me-modal-overlay" id="logoutPasswordOverlay">
+  <div class="me-modal-box" role="dialog" aria-modal="true">
+    <div class="edit-title">验证密码以退出</div>
+    <p class="logout-warn">退出后将清除本机账号与学习记录（星星、已学字、连续天数等），且无法找回。</p>
+    <div class="form-group">
+      <label class="sr-only" for="logoutPasswordInput">登录密码</label>
+      <input class="form-input" id="logoutPasswordInput" type="password" placeholder="请输入登录密码" autocomplete="current-password">
+    </div>
+    <div class="edit-actions">
+      <button type="button" class="btn-cancel-edit" onclick="closeLogoutPasswordModal()">取消</button>
+      <button type="button" class="btn-save-edit btn-danger-text" onclick="confirmLogoutWithPassword()">确认退出</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 我的 - 退出登录（未记住密码：强制退出提示） ===== -->
+<div class="me-modal-overlay" id="logoutForceOverlay">
+  <div class="me-modal-box" role="dialog" aria-modal="true">
+    <div class="edit-title">确认强制退出</div>
+    <p class="logout-warn">您未选择记住密码，无法校验密码。退出后将清除本机账号与<strong>全部学习记录</strong>（星星、已学字、连续天数等），<strong>无法找回</strong>。</p>
+    <div class="edit-actions edit-actions--stack">
+      <button type="button" class="btn-save-edit" onclick="confirmForceLogout()">仍要退出</button>
+      <button type="button" class="btn-cancel-edit" onclick="closeLogoutForceModal()">取消</button>
     </div>
   </div>
 </div>

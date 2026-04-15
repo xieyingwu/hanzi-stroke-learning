@@ -73,4 +73,33 @@ describe('ProgressStore streak helpers', () => {
     expect(r.streak).toBe(1);
     expect(r.lastActiveDate).toBe(t);
   });
+
+  it('clearAll resets progress keys', () => {
+    const w = typeof window !== 'undefined' ? window : globalThis;
+    localStorage.setItem('stars', '99');
+    localStorage.setItem('learnedChars', JSON.stringify(['一', '二']));
+    localStorage.setItem('streak', '5');
+    localStorage.setItem('lastActiveDate', '2020-01-01');
+    localStorage.setItem('dailyNewLearnedDate', '2026-01-01');
+    localStorage.setItem('dailyNewLearnedCount', '3');
+    w.ProgressStore.clearAll();
+    const p = w.ProgressStore.load();
+    expect(p.stars).toBe(0);
+    expect(p.learned).toEqual([]);
+    expect(p.streak).toBe(1);
+    expect(p.lastActiveDate).toBe('');
+    expect(localStorage.getItem('dailyNewLearnedDate')).toBeNull();
+    expect(localStorage.getItem('dailyNewLearnedCount')).toBeNull();
+  });
+
+  it('incrementTodayNewLearned counts per calendar day', () => {
+    const w = typeof window !== 'undefined' ? window : globalThis;
+    const h = w.ProgressStore.__testHelpers;
+    const today = h.todayYMD();
+    localStorage.setItem('dailyNewLearnedDate', today);
+    localStorage.setItem('dailyNewLearnedCount', '0');
+    expect(w.ProgressStore.incrementTodayNewLearned()).toBe(1);
+    expect(w.ProgressStore.getTodayNewLearnedCount()).toBe(1);
+    expect(w.ProgressStore.incrementTodayNewLearned()).toBe(2);
+  });
 });

@@ -13,6 +13,13 @@ export default [
         Voice: 'readonly',
         ProgressStore: 'readonly',
         HanziAdapter: 'readonly',
+        syncStateFromProgressStore: 'readonly',
+        renderCategories: 'readonly',
+        renderGrid: 'readonly',
+        updateStats: 'readonly',
+        updateStarDisplay: 'readonly',
+        getAgeBasedDailyMin: 'readonly',
+        getDailyLearnTarget: 'readonly',
       },
     },
     rules: {

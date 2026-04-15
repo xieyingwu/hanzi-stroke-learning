@@ -40,6 +40,9 @@ function switchTab(tab, el) {
   if (tab === 'me') {
     refreshMePage();
   }
+  if (tab === 'learn' && typeof updateStats === 'function') {
+    updateStats();
+  }
 }
 
 //  触摸下滑关闭弹层

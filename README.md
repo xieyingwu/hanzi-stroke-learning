@@ -8,10 +8,11 @@
 |------|------|
 | [index.html](index.html) | 唯一页面入口 |
 | [data/hanzi-meta.json](data/hanzi-meta.json) | 约 **3500** 个汉字的拼音、释义（元数据） |
-| [data/categories.json](data/categories.json) | **17** 条分类（含「全部」+ 16 类主题/分级字表） |
+| [data/categories.json](data/categories.json) | **已学习** →「入门百字」「常用三百」→ 主题类 →「进阶」16 组（每组≤200 字）；无「全部」汇总项 |
+| `stroke-data/`（构建生成） | 笔顺 SVG 数据分片 + `stroke-shard-map.json`；由 `npm run build:stroke-data` 从 `hanzi-writer-data` 生成，默认不提交 |
 | Hanzi Writer 脚本 | [index.html](index.html) 默认使用 jsDelivr CDN；也可改为本地 `js/hanzi-writer.min.js`。 |
 
-分类含义与规模与旧版「3500 字 / 16 类主题」一致：「全部」汇总元数据中的全部字头。
+「入门百字」「常用三百」字表与旧版一致；其余字头按进阶组与主题类浏览。默认进入「已学习」，可在二级标签中按原分类筛选已掌握的字。
 
 ## 本地运行方式
 
@@ -41,7 +42,7 @@ npm run build
 npm run preview
 ```
 
-构建结果在 `dist/`，字表目录会一并复制到 `dist/data/`。
+构建结果在 `dist/`：`data/` 与 `stroke-data/`（笔顺分片）会一并复制。
 
 ## GitHub Pages 部署
 
@@ -67,9 +68,16 @@ npm run preview
 
 已从旧键 `userStars` / `userLearned` 自动合并星星数（若有），并清除旧键。
 
-## 笔顺数据离线包（可选）
+## 笔顺数据（推荐：分片打包）
 
-将 `hanzi-writer-data` 解压到仓库根目录的 `hanzi-data/`（与 `.gitignore` 一致，不提交），每个字对应 `hanzi-data/<字符>.json`。无本地文件时从 jsDelivr CDN 拉取。
+生产构建会执行 `npm run build:stroke-data`：根据 `data/hanzi-meta.json` 从依赖包 `hanzi-writer-data` 生成 **`stroke-data/`**（字表映射 + 每约 220 字一个 JSON 分片，整片缓存），并随 `vite build` 复制到 `dist/stroke-data/`。首屏只预取约 30KB 的 `stroke-shard-map.json`，点开某字时再拉取**所在分片一次**（同分片内其它字复用缓存），移动端比逐字请求 CDN 更稳。
+
+- **GitHub Actions** 已在 `npm run build` 中自动生成分片，无需手工操作。
+- **本地开发**：可先执行 `npm run build:stroke-data` 再 `npm run dev`，与线上一致走分片；不生成时仍回退到下方「单字 CDN」。
+
+## 笔顺数据单字离线包（可选）
+
+将 `hanzi-writer-data` 解压到仓库根目录的 `hanzi-data/`（与 `.gitignore` 一致，不提交），每个字对应 `hanzi-data/<字符>.json`。无分片、无单字文件时从 jsDelivr CDN 拉取。
 
 可用：
 

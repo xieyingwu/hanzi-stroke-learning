@@ -69,6 +69,27 @@ function bindLearnDelegatedEvents() {
       grid.addEventListener("click", openFromCard);
     }
   }
+  var learnedSubRow = document.getElementById("learnedSubRow");
+  if (learnedSubRow && !learnedSubRow._delegBound) {
+    learnedSubRow._delegBound = true;
+    function onLearnedSub(e) {
+      var btn = e.target.closest("[data-learned-sub]");
+      if (!btn) return;
+      e.preventDefault();
+      state.learnedSub = btn.getAttribute("data-learned-sub") || "all";
+      renderCategories();
+      renderGrid();
+      updateStats();
+    }
+    if (usePointer) {
+      learnedSubRow.addEventListener("pointerup", function (e) {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        onLearnedSub(e);
+      });
+    } else {
+      learnedSubRow.addEventListener("click", onLearnedSub);
+    }
+  }
 }
 
 //  应用状态
@@ -76,7 +97,8 @@ function bindLearnDelegatedEvents() {
 const state = {
   stars:           0,
   learned:         [],
-  currentCategory: 'all',
+  currentCategory: 'learned',
+  learnedSub:      'all',
   currentChar:     null,
   streak:          1,
   writer:          null,
@@ -89,12 +111,29 @@ const state = {
 /** 弹层刚打开时，移动端仍会派发一次「幽灵 click」（原触摸点落在全屏遮罩上），会误触关闭；短时间内忽略遮罩关闭 */
 let modalOpenedAtMs = 0;
 
+/** 逐笔 animateStroke 链：暂停/关闭时递增，丢弃过期 onComplete */
+let strokeAnimSeq = 0;
+
 
 // ============================================================
 //  初始化
 // ============================================================
+function preloadStrokeShardMap() {
+  if (typeof getAppBaseUrl !== 'function') return;
+  var base = getAppBaseUrl();
+  fetch(new URL('stroke-data/stroke-shard-map.json', base).href)
+    .then(function (r) {
+      if (r.ok) return r.json();
+    })
+    .then(function (m) {
+      if (m) window.__strokeShardMap = m;
+    })
+    .catch(function () {});
+}
+
 async function init() {
   await loadLearnData();
+  preloadStrokeShardMap();
   syncStateFromProgressStore();
   bindLearnDelegatedEvents();
   renderCategories();
@@ -104,24 +143,66 @@ async function init() {
 }
 
 function getAllChars() {
-  if (state.currentCategory === 'all') return Object.keys(HANZI_META);
-  const cat = CATEGORIES.find(c => c.id === state.currentCategory);
-  if (!cat || !cat.chars) return Object.keys(HANZI_META);
-  return cat.chars.filter(c => HANZI_META[c]);
+  if (state.currentCategory === 'learned') {
+    const learnedList = state.learned.filter(function (c) { return HANZI_META[c]; });
+    if (state.learnedSub === 'all') return learnedList;
+    const sub = CATEGORIES.find(function (c) { return c.id === state.learnedSub; });
+    if (!sub || !sub.chars || sub.chars.length === 0) return learnedList;
+    var set = {};
+    for (var i = 0; i < sub.chars.length; i++) set[sub.chars[i]] = true;
+    return learnedList.filter(function (c) { return set[c]; });
+  }
+  const cat = CATEGORIES.find(function (c) { return c.id === state.currentCategory; });
+  if (!cat || !cat.chars) return [];
+  return cat.chars.filter(function (c) { return HANZI_META[c]; });
 }
 
 // ============================================================
 //  渲染分类
 // ============================================================
 function renderCategories() {
-  document.getElementById('categoryList').innerHTML = CATEGORIES.map(cat => {
-    const count = cat.id === 'all' ? Object.keys(HANZI_META).length : (cat.chars ? cat.chars.filter(c => HANZI_META[c]).length : 0);
-    return `
-    <button type="button" class="cat-btn ${cat.id === state.currentCategory ? 'active' : ''}"
-      data-cat-id="${cat.id}">
-      ${cat.emoji} ${cat.name}<span style="font-size:11px;opacity:0.75;margin-left:3px;">${count}</span>
-    </button>`;
+  document.getElementById('categoryList').innerHTML = CATEGORIES.map(function (cat) {
+    var count = cat.id === 'learned'
+      ? state.learned.filter(function (c) { return HANZI_META[c]; }).length
+      : (cat.chars ? cat.chars.filter(function (c) { return HANZI_META[c]; }).length : 0);
+    return (
+      '<button type="button" class="cat-btn ' + (cat.id === state.currentCategory ? 'active' : '') + '" ' +
+      'data-cat-id="' + cat.id + '">' +
+      cat.emoji + ' ' + cat.name +
+      '<span style="font-size:11px;opacity:0.75;margin-left:3px;">' + count + '</span>' +
+      '</button>'
+    );
   }).join('');
+
+  var subRow = document.getElementById('learnedSubRow');
+  if (!subRow) return;
+  if (state.currentCategory === 'learned') {
+    subRow.style.display = 'flex';
+    var subs = CATEGORIES.filter(function (c) { return c.id !== 'learned'; });
+    var parts = [
+      '<button type="button" class="cat-btn cat-sub ' + (state.learnedSub === 'all' ? 'active' : '') + '" data-learned-sub="all">' +
+      '📌 全部已学</button>'
+    ];
+    for (var j = 0; j < subs.length; j++) {
+      var sc = subs[j];
+      var n = 0;
+      if (sc.chars && sc.chars.length) {
+        for (var k = 0; k < sc.chars.length; k++) {
+          var ch = sc.chars[k];
+          if (HANZI_META[ch] && state.learned.indexOf(ch) !== -1) n++;
+        }
+      }
+      parts.push(
+        '<button type="button" class="cat-btn cat-sub ' + (state.learnedSub === sc.id ? 'active' : '') + '" data-learned-sub="' +
+        sc.id + '">' + sc.emoji + ' ' + sc.name +
+        '<span style="font-size:11px;opacity:0.75;margin-left:3px;">' + n + '</span></button>'
+      );
+    }
+    subRow.innerHTML = parts.join('');
+  } else {
+    subRow.style.display = 'none';
+    subRow.innerHTML = '';
+  }
 }
 
 function selectCategory(id) {
@@ -162,17 +243,112 @@ function renderGrid() {
 }
 
 // ============================================================
-//  统计
+//  统计：今日目标（随年龄）+ 当前分类进度
 // ============================================================
+function ageFromBirthDateLearn(ymd) {
+  if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
+  const parts = ymd.split('-').map(Number);
+  const birth = new Date(parts[0], parts[1] - 1, parts[2]);
+  if (Number.isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - parts[0];
+  const md = today.getMonth() * 100 + today.getDate();
+  const bmd = birth.getMonth() * 100 + birth.getDate();
+  if (md < bmd) age -= 1;
+  return age >= 0 ? age : null;
+}
+
+/**
+ * 年龄建议下限：0～4 岁 5 个/天，5 岁 10 个/天，6 岁及以上 20 个/天；未填出生日期为 10。
+ * 供「我的」每日目标校验与展示。
+ */
+function getAgeBasedDailyMin() {
+  let age = null;
+  try {
+    const raw = localStorage.getItem('hanzi_user');
+    if (raw) {
+      const u = JSON.parse(raw);
+      if (u && u.birthDate) age = ageFromBirthDateLearn(u.birthDate);
+    }
+  } catch (_) {}
+  if (age == null) return 10;
+  if (age < 5) return 5;
+  if (age === 5) return 10;
+  return 20;
+}
+
+/**
+ * 实际每日目标：若在「我的」中设置了 dailyLearnGoal 且在 [年龄下限, 50] 内则用之，否则用年龄建议。
+ */
+function getDailyLearnTarget() {
+  const minByAge = getAgeBasedDailyMin();
+  try {
+    const raw = localStorage.getItem('hanzi_user');
+    if (!raw) return minByAge;
+    const u = JSON.parse(raw);
+    if (u.dailyLearnGoal != null && u.dailyLearnGoal !== '') {
+      const n = parseInt(String(u.dailyLearnGoal), 10);
+      if (!isNaN(n) && n >= minByAge && n <= 50) return n;
+    }
+  } catch (_) {}
+  return minByAge;
+}
+
+window.getAgeBasedDailyMin = getAgeBasedDailyMin;
+
+function updateTodayProgressUI() {
+  const target = getDailyLearnTarget();
+  const done = ProgressStore.getTodayNewLearnedCount();
+  const pct = target > 0 ? Math.min(100, Math.round((done / target) * 100)) : 0;
+  const fill = document.getElementById('progressFill');
+  const txt = document.getElementById('progressText');
+  if (fill) fill.style.width = pct + '%';
+  if (txt) txt.textContent = done + '/' + target;
+}
+
+function updateCategoryProgressUI() {
+  const wrap = document.getElementById('categoryProgressWrap');
+  const titleEl = document.getElementById('categoryProgressTitle');
+  const fracEl = document.getElementById('categoryProgressFraction');
+  const fill = document.getElementById('categoryProgressFill');
+  if (!wrap || !titleEl || !fracEl || !fill) return;
+
+  if (state.currentCategory === 'learned') {
+    wrap.hidden = true;
+    return;
+  }
+
+  const cat = CATEGORIES.find(function (c) {
+    return c.id === state.currentCategory;
+  });
+  if (!cat) {
+    wrap.hidden = true;
+    return;
+  }
+
+  const list = (cat.chars || []).filter(function (ch) {
+    return HANZI_META[ch];
+  });
+  const total = list.length;
+  let learned = 0;
+  for (let i = 0; i < list.length; i++) {
+    if (state.learned.indexOf(list[i]) !== -1) learned++;
+  }
+  const pct = total > 0 ? Math.round((learned / total) * 100) : 0;
+
+  wrap.hidden = false;
+  titleEl.textContent = (cat.emoji ? cat.emoji + ' ' : '') + (cat.name || '当前分类');
+  fracEl.textContent = learned + '/' + total;
+  fill.style.width = pct + '%';
+}
+
 function updateStats() {
   const chars = getAllChars();
-  const learnedInCat = chars.filter(c => state.learned.includes(c)).length;
   document.getElementById('learnedCount').textContent = state.learned.length;
-  document.getElementById('totalCount').textContent  = chars.length;
+  document.getElementById('totalCount').textContent = chars.length;
   document.getElementById('streakCount').textContent = state.streak;
-  const pct = chars.length > 0 ? Math.round(learnedInCat / chars.length * 100) : 0;
-  document.getElementById('progressFill').style.width = pct + '%';
-  document.getElementById('progressText').textContent = pct + '%';
+  updateTodayProgressUI();
+  updateCategoryProgressUI();
 }
 function updateStarDisplay() {
   document.getElementById('starCount').textContent = state.stars;
@@ -293,49 +469,61 @@ function syncIndicatorToStroke(strokeIdx) {
 //  控制按钮
 // ============================================================
 
+function runStrokeAnimationChain(strokeIndex) {
+  var mySeq = strokeAnimSeq;
+  if (!state.isAnimating || !state.writer || !state.writerReady) return;
+
+  if (strokeIndex >= state.strokeCount) {
+    if (mySeq !== strokeAnimSeq) return;
+    state.isAnimating = false;
+    state.currentStroke = state.strokeCount - 1;
+    document.getElementById('playBtn').textContent = '▶ 重播';
+    document.getElementById('strokeStep').textContent = '完成！🎉';
+    for (var i = 0; i < state.strokeCount; i++) setDotState(i, 'done');
+    showToast('🎊 写完啦，真棒！');
+    return;
+  }
+
+  state.currentStroke = strokeIndex;
+  syncIndicatorToStroke(strokeIndex);
+
+  try {
+    state.writer.animateStroke(strokeIndex, {
+      onComplete: function () {
+        if (mySeq !== strokeAnimSeq || !state.isAnimating) return;
+        setDotState(strokeIndex, 'done');
+        runStrokeAnimationChain(strokeIndex + 1);
+      }
+    });
+  } catch (e) {
+    console.warn('播放失败:', e);
+    state.isAnimating = false;
+    document.getElementById('playBtn').textContent = '▶ 播放';
+  }
+}
+
 function doPlay() {
-  // 如果正在加载数据，提示等待
   if (!state.writer) {
     showToast('⏳ 数据加载中，请稍候…');
     return;
   }
-  // 暂停逻辑
   if (state.isAnimating) {
-    try { state.writer.pauseAnimation(); } catch(e) {}
-    try { state.writer.cancelAnimation(); } catch(e) {}
+    strokeAnimSeq++;
+    try { state.writer.cancelAnimation(); } catch (e) {}
+    try { state.writer.pauseAnimation(); } catch (e2) {}
     state.isAnimating = false;
     document.getElementById('playBtn').textContent = '▶ 继续';
     return;
   }
 
-  // 从头播放 / 继续
+  strokeAnimSeq++;
   state.currentStroke = -1;
-  state.isAnimating   = true;
+  state.isAnimating = true;
   document.getElementById('playBtn').textContent = '⏸ 暂停';
-  document.querySelectorAll('.stroke-dot').forEach(d => d.classList.remove('current','done'));
+  document.querySelectorAll('.stroke-dot').forEach(function (d) { d.classList.remove('current', 'done'); });
   document.getElementById('strokeStep').textContent = '';
 
-  try {
-    state.writer.animateCharacter({
-    onComplete: function() {
-      state.isAnimating   = false;
-      state.currentStroke = state.strokeCount - 1;
-      document.getElementById('playBtn').textContent = '▶ 重播';
-      document.getElementById('strokeStep').textContent = '完成！🎉';
-      for (let i = 0; i < state.strokeCount; i++) setDotState(i, 'done');
-      showToast('🎊 写完啦，真棒！');
-    },
-    onStrokeComplete: function(strokeNum, numStrokes) {
-      const idx = strokeNum - 1;
-      state.currentStroke = idx;
-      syncIndicatorToStroke(idx);
-    }
-    });
-  } catch(e) {
-    console.warn('播放失败:', e);
-    state.isAnimating = false;
-    document.getElementById('playBtn').textContent = '▶ 播放';
-  }
+  runStrokeAnimationChain(0);
 }
 
 function doNext() {
@@ -361,17 +549,17 @@ function doNext() {
 }
 
 function doReset() {
+  strokeAnimSeq++;
   if (!state.writer) {
-    // 数据还没加载完，先重置状态，等加载完后会自动播放
     state.isAnimating   = false;
     state.currentStroke = -1;
     document.getElementById('playBtn').textContent      = '▶ 播放';
     document.getElementById('strokeStep').textContent   = '';
-    document.querySelectorAll('.stroke-dot').forEach(d => d.classList.remove('current','done'));
+    document.querySelectorAll('.stroke-dot').forEach(function (d) { d.classList.remove('current', 'done'); });
     return;
   }
-  try { state.writer.cancelAnimation(); } catch(e) {}
-  try { state.writer.pauseAnimation(); } catch(e) {}
+  try { state.writer.cancelAnimation(); } catch (e) {}
+  try { state.writer.pauseAnimation(); } catch (e2) {}
 
   state.isAnimating   = false;
   state.currentStroke = -1;
@@ -398,6 +586,7 @@ function markLearned() {
     state.learned.push(char);
     state.stars += 3;
     ProgressStore.saveStarsAndLearned(state.stars, state.learned);
+    ProgressStore.incrementTodayNewLearned();
     updateStarDisplay();
     spawnStars();
     showToast('🌟 太棒了！获得3颗星！');
@@ -440,8 +629,9 @@ function spawnStars() {
 //  关闭弹层
 // ============================================================
 function closeModal() {
+  strokeAnimSeq++;
   if (state.writer) {
-    try { state.writer.cancelAnimation(); } catch(e) {}
+    try { state.writer.cancelAnimation(); } catch (e) {}
   }
   state.isAnimating = false;
   // 关闭时停止语音

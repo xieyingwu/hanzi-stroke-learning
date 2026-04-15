@@ -7,6 +7,9 @@ const ProgressStore = (function () {
   const KEY_LEARNED = 'learnedChars';
   const KEY_STREAK = 'streak';
   const KEY_LAST = 'lastActiveDate';
+  /** 今日新学会字数（日历日切换时清零） */
+  const KEY_DAILY_DATE = 'dailyNewLearnedDate';
+  const KEY_DAILY_NEW_COUNT = 'dailyNewLearnedCount';
 
   const LEGACY_USER_STARS = 'userStars';
   const LEGACY_USER_LEARNED = 'userLearned';
@@ -116,6 +119,27 @@ const ProgressStore = (function () {
     persistSnapshot(snap);
   }
 
+  function getTodayNewLearnedCount() {
+    migrateLegacyOnce();
+    const today = todayYMD();
+    const saved = localStorage.getItem(KEY_DAILY_DATE) || '';
+    if (saved !== today) {
+      localStorage.setItem(KEY_DAILY_DATE, today);
+      localStorage.setItem(KEY_DAILY_NEW_COUNT, '0');
+      return 0;
+    }
+    return parseInt(localStorage.getItem(KEY_DAILY_NEW_COUNT) || '0', 10) || 0;
+  }
+
+  /** 新学会一字（当日首次记入「已学」时调用） */
+  function incrementTodayNewLearned() {
+    getTodayNewLearnedCount();
+    const n = parseInt(localStorage.getItem(KEY_DAILY_NEW_COUNT) || '0', 10) || 0;
+    const next = n + 1;
+    localStorage.setItem(KEY_DAILY_NEW_COUNT, String(next));
+    return next;
+  }
+
   return {
     load,
     persistSnapshot,
@@ -133,6 +157,20 @@ const ProgressStore = (function () {
     },
     getStreak() {
       return load().streak;
+    },
+    getTodayNewLearnedCount,
+    incrementTodayNewLearned,
+    /** 清空学习进度（星星、已学列表、连续天数等），供退出登录等场景 */
+    clearAll() {
+      migrateLegacyOnce();
+      persistSnapshot({
+        stars: 0,
+        learned: [],
+        streak: 1,
+        lastActiveDate: '',
+      });
+      localStorage.removeItem(KEY_DAILY_DATE);
+      localStorage.removeItem(KEY_DAILY_NEW_COUNT);
     },
     __testHelpers: {
       todayYMD,

@@ -5,6 +5,7 @@ import { defineConfig } from 'vite';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const dataDir = resolve(__dirname, 'data');
+const strokeDataDir = resolve(__dirname, 'stroke-data');
 
 function serveProjectDataDir() {
   return {
@@ -42,6 +43,39 @@ function copyDataToDist() {
         mkdirSync(out, { recursive: true });
         cpSync(dataDir, out, { recursive: true });
       }
+      const strokeOut = join(__dirname, 'dist', 'stroke-data');
+      if (existsSync(strokeDataDir)) {
+        mkdirSync(strokeOut, { recursive: true });
+        cpSync(strokeDataDir, strokeOut, { recursive: true });
+      }
+    },
+  };
+}
+
+function serveStrokeDataDir() {
+  return {
+    name: 'serve-stroke-data-dir',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (!req.url || !req.url.startsWith('/stroke-data/')) {
+          next();
+          return;
+        }
+        const name = req.url.replace(/^\/stroke-data\//, '').replace(/\.\./g, '');
+        if (!name || name.includes('..')) {
+          next();
+          return;
+        }
+        const fp = join(strokeDataDir, name);
+        if (!existsSync(fp)) {
+          next();
+          return;
+        }
+        const buf = readFileSync(fp);
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.end(buf);
+      });
     },
   };
 }
@@ -54,7 +88,7 @@ export default defineConfig({
   root: '.',
   appType: 'mpa',
   publicDir: false,
-  plugins: [serveProjectDataDir(), copyDataToDist()],
+  plugins: [serveProjectDataDir(), serveStrokeDataDir(), copyDataToDist()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,

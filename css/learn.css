@@ -35,11 +35,33 @@
   text-shadow: 1px 1px 0 rgba(0,0,0,0.2);
 }
 
-/* ===== 进度条 ===== */
+:root {
+  /* 与 .top-nav 高度大致对齐，便于「今日进度」吸顶时贴在导航下方 */
+  --top-nav-h: 56px;
+}
+
+/* ===== 今日进度 + 分类（整块吸顶） ===== */
+.learn-sticky-toolbar {
+  position: sticky;
+  top: var(--top-nav-h);
+  z-index: 40;
+  padding: 0 12px 8px;
+  margin: 0 -4px 4px;
+  background: linear-gradient(
+    180deg,
+    rgba(232, 246, 255, 0.98) 0%,
+    rgba(232, 246, 255, 0.94) 85%,
+    rgba(232, 246, 255, 0.88) 100%
+  );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 6px 14px rgba(58, 58, 92, 0.08);
+  border-radius: 0 0 16px 16px;
+}
 .progress-section {
   position: relative;
   z-index: 1;
-  padding: 16px 16px 8px;
+  padding: 12px 4px 6px;
 }
 .progress-label {
   display: flex;
@@ -73,10 +95,11 @@
   border-radius: 2px;
 }
 
-/* ===== 分类选择器 ===== */
+/* ===== 分类选择器（与进度同属吸顶条） ===== */
 .category-section {
-  position: relative; z-index: 1;
-  padding: 8px 16px 4px;
+  position: relative;
+  z-index: 1;
+  padding: 4px 4px 6px;
 }
 .section-title {
   font-size: 15px; font-weight: 800;
@@ -90,6 +113,60 @@
   scrollbar-width: none;
 }
 .category-scroll::-webkit-scrollbar { display: none; }
+
+/* 当前分类学习进度（「已学习」分类不显示） */
+.category-progress-wrap {
+  margin-top: 8px;
+  padding: 10px 2px 4px;
+  border-top: 1px dashed rgba(123, 123, 154, 0.35);
+}
+.category-progress-wrap[hidden] {
+  display: none !important;
+}
+.category-progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--mid);
+  margin-bottom: 6px;
+}
+.category-progress-label span:first-child {
+  color: var(--dark);
+  font-weight: 800;
+}
+.category-progress-bar {
+  height: 10px;
+  background: rgba(255,255,255,0.85);
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.08);
+}
+.category-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #FF8C42, #FFD93D);
+  border-radius: 5px;
+  transition: width 0.45s var(--bounce);
+  max-width: 100%;
+}
+
+.learned-sub-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 0 10px;
+  margin-top: 4px;
+  scrollbar-width: none;
+  flex-wrap: nowrap;
+  border-top: 1px dashed rgba(123, 123, 154, 0.35);
+}
+.learned-sub-scroll::-webkit-scrollbar { display: none; }
+.cat-btn.cat-sub {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 16px;
+}
 .cat-btn {
   flex-shrink: 0;
   padding: 8px 18px;
