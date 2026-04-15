@@ -26,14 +26,27 @@
   </div>
 </nav>
 
-<!-- 笔顺动画 JSON 首屏预加载（完成后可即时弹层） -->
-<div id="strokeAssetBar" class="stroke-asset-bar" role="status" aria-live="polite" aria-busy="true" hidden>
-  <div class="stroke-asset-bar-row">
-    <span class="stroke-asset-bar-label">✏️ 笔顺动画资源加载中</span>
-    <span class="stroke-asset-bar-pct" id="strokeAssetPct">0%</span>
+<!-- 笔顺动画 JSON 首屏预加载：加载中显示进度；完成后显示可关闭提示 -->
+<div id="strokeAssetBar" class="stroke-asset-bar" role="region" aria-label="笔顺资源加载" hidden>
+  <div id="strokeAssetLoading" class="stroke-asset-bar-mode">
+    <div class="stroke-asset-bar-row">
+      <span class="stroke-asset-bar-label">✏️ 正在加载笔顺动画资源</span>
+      <span class="stroke-asset-bar-pct" id="strokeAssetPct" aria-live="polite">0%</span>
+    </div>
+    <p class="stroke-asset-bar-desc" id="strokeAssetDesc">全量资源下载中，完成后即可流畅打开练字弹窗</p>
+    <div class="stroke-asset-bar-track" aria-hidden="true">
+      <div class="stroke-asset-bar-fill" id="strokeAssetFill" style="width:0%"></div>
+    </div>
   </div>
-  <div class="stroke-asset-bar-track">
-    <div class="stroke-asset-bar-fill" id="strokeAssetFill" style="width:0%"></div>
+  <div id="strokeAssetDone" class="stroke-asset-bar-mode stroke-asset-bar-mode--done" hidden>
+    <div class="stroke-asset-bar-row stroke-asset-bar-row--done">
+      <span class="stroke-asset-bar-label" id="strokeAssetDoneTitle">笔顺资源已就绪</span>
+      <div class="stroke-asset-bar-actions" id="strokeAssetDoneActions">
+        <button type="button" class="stroke-asset-bar-retry" id="strokeAssetRetryBtn" hidden>继续下载</button>
+        <button type="button" class="stroke-asset-bar-close" id="strokeAssetBarClose">关闭</button>
+      </div>
+    </div>
+    <p class="stroke-asset-bar-desc stroke-asset-bar-desc--done" id="strokeAssetDoneSub"></p>
   </div>
 </div>
 

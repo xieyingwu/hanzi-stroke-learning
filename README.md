@@ -46,11 +46,11 @@ npm run preview
 
 ## GitHub Pages 部署
 
-本仓库含 [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)：向 `main` 推送后会执行 `vite build`（`VITE_BASE_PATH=/hanzi-stroke-learning/`，与默认仓库页路径一致）并发布到 GitHub Pages。
+本仓库含 [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)：向 `main` 推送后会执行 **`npm run build`**（含 `build:stroke-data` 从 `hanzi-writer-data` 生成分片，再 `vite build` 将 `stroke-data/` 复制到 `dist/`）。工作流中 **Verify stroke-data in dist** 步骤会校验 `dist/stroke-data/` 存在且映射非空，否则构建失败，避免线上缺少笔顺 JSON、手机端无法全量下载。
 
 1. 在 GitHub 打开本仓库 **Settings → Pages**。
 2. **Build and deployment** 的 **Source** 选择 **GitHub Actions**（不要选 branch）。
-3. 推送 `main` 后，在 **Actions** 中查看 **Deploy GitHub Pages** 是否成功。
+3. 推送 `main` 后，在 **Actions** 中查看 **Deploy GitHub Pages** 是否成功（绿色且含 **Verify stroke-data in dist** 通过）。
 
 站点地址一般为：`https://<你的用户名>.github.io/hanzi-stroke-learning/`。若你**重命名了仓库**，请同步修改工作流里的 `VITE_BASE_PATH`（或改为与你的仓库名一致的路径前缀）。
 

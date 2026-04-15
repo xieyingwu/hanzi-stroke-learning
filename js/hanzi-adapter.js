@@ -17,6 +17,37 @@ const HanziAdapter = (function () {
     return new URL('stroke-data/stroke-shard-map.json', base).href;
   }
 
+  function shardJsonUrl(base, shardId) {
+    var idStr = String(shardId).padStart(2, '0');
+    return new URL('stroke-data/shards/' + idStr + '.json', base).href;
+  }
+
+  /** 预热开始前：该 URL 是否已在 Cache API 中（用于提示「已使用浏览器缓存」） */
+  function cacheMatchUrl(href) {
+    if (!('caches' in window)) return Promise.resolve(false);
+    var name =
+      window.StrokeCache && window.StrokeCache.CACHE_NAME
+        ? window.StrokeCache.CACHE_NAME
+        : 'hanzi-stroke-assets-v1';
+    return caches.open(name).then(function (cache) {
+      return cache.match(href).then(function (r) {
+        return !!r;
+      });
+    });
+  }
+
+  function inferCacheMode(mapCachedBefore, shardIds, shardPreCached) {
+    var n = shardIds.length;
+    if (n === 0) return 'network';
+    var c = 0;
+    for (var i = 0; i < shardPreCached.length; i++) {
+      if (shardPreCached[i]) c++;
+    }
+    if (mapCachedBefore && c === n) return 'all_cache';
+    if (!mapCachedBefore && c === 0) return 'network';
+    return 'partial';
+  }
+
   function fetchShardMap(base) {
     if (window.__strokeShardMap) return Promise.resolve(window.__strokeShardMap);
     if (mapLoadPromise) return mapLoadPromise;
@@ -111,49 +142,72 @@ const HanziAdapter = (function () {
   function warmStrokePacksWithProgress(base, onProgress) {
     var b = base || getBase();
     if (typeof onProgress === 'function') onProgress(0);
-    return fetchShardMap(b)
-      .then(function (map) {
-        if (!map || typeof map !== 'object') {
-          if (typeof onProgress === 'function') onProgress(1);
-          return { ok: false, reason: 'no_map' };
-        }
-        var seen = Object.create(null);
-        var k;
-        for (k in map) {
-          if (Object.prototype.hasOwnProperty.call(map, k)) {
-            seen[map[k]] = true;
+    var mapUrl = fetchMapUrl(b);
+    return cacheMatchUrl(mapUrl)
+      .then(function (mapCachedBefore) {
+        return fetchShardMap(b).then(function (map) {
+          if (!map || typeof map !== 'object') {
+            if (typeof onProgress === 'function') onProgress(1);
+            return { ok: false, reason: 'no_map', cacheMode: 'unknown' };
           }
-        }
-        var shardIds = Object.keys(seen)
-          .map(function (x) {
-            return parseInt(x, 10);
-          })
-          .filter(function (n) {
-            return !isNaN(n);
-          })
-          .sort(function (a, b) {
-            return a - b;
-          });
-        var total = 1 + shardIds.length;
-        var done = 1;
-        if (typeof onProgress === 'function') onProgress(done / total);
-        return Promise.all(
-          shardIds.map(function (sid) {
-            return loadShardPayload(b, sid).then(function (payload) {
-              done++;
-              if (typeof onProgress === 'function') onProgress(done / total);
-              return payload;
+          var seen = Object.create(null);
+          var k;
+          for (k in map) {
+            if (Object.prototype.hasOwnProperty.call(map, k)) {
+              seen[map[k]] = true;
+            }
+          }
+          var shardIds = Object.keys(seen)
+            .map(function (x) {
+              return parseInt(x, 10);
+            })
+            .filter(function (n) {
+              return !isNaN(n);
+            })
+            .sort(function (a, b) {
+              return a - b;
             });
-          })
-        ).then(function () {
-          if (typeof onProgress === 'function') onProgress(1);
-          return { ok: true, shardCount: shardIds.length };
+          return Promise.all(
+            shardIds.map(function (sid) {
+              return cacheMatchUrl(shardJsonUrl(b, sid));
+            })
+          ).then(function (shardPreCached) {
+            var totalUnits = 1 + shardIds.length;
+            var completedUnits = 1;
+            if (typeof onProgress === 'function') onProgress(completedUnits / totalUnits);
+            var cacheMode = inferCacheMode(mapCachedBefore, shardIds, shardPreCached);
+            return Promise.allSettled(
+              shardIds.map(function (sid) {
+                return loadShardPayload(b, sid).finally(function () {
+                  completedUnits++;
+                  if (typeof onProgress === 'function') {
+                    onProgress(Math.min(1, completedUnits / totalUnits));
+                  }
+                });
+              })
+            ).then(function (results) {
+              if (typeof onProgress === 'function') onProgress(1);
+              var failed = results.filter(function (r) {
+                return r.status === 'rejected';
+              });
+              if (failed.length > 0) {
+                return {
+                  ok: false,
+                  reason: 'shard_failed',
+                  failedCount: failed.length,
+                  shardCount: shardIds.length,
+                  cacheMode: 'unknown',
+                };
+              }
+              return { ok: true, shardCount: shardIds.length, cacheMode: cacheMode };
+            });
+          });
         });
       })
       .catch(function (e) {
         console.warn('笔顺包预热失败', e);
         if (typeof onProgress === 'function') onProgress(1);
-        return { ok: false, reason: String(e) };
+        return { ok: false, reason: String(e), cacheMode: 'unknown' };
       });
   }
 
@@ -209,7 +263,11 @@ const HanziAdapter = (function () {
     });
   }
 
-  return { create, buildCharDataLoader, warmStrokePacksWithProgress };
+  return {
+    create,
+    buildCharDataLoader,
+    warmStrokePacksWithProgress,
+  };
 })();
 
 window.HanziAdapter = HanziAdapter;

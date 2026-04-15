@@ -36,6 +36,36 @@ jobs:
           VITE_BASE_PATH: /hanzi-stroke-learning/
         run: npm run build
 
+      # 笔顺分片由 build:stroke-data 生成并随 Vite 复制到 dist；缺失则手机端无法全量预热
+      - name: Verify stroke-data in dist
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const mapPath = 'dist/stroke-data/stroke-shard-map.json';
+          const shardsDir = 'dist/stroke-data/shards';
+          if (!fs.existsSync(mapPath)) {
+            console.error('FAIL: missing', mapPath, '- run npm run build:stroke-data locally or check CI npm install');
+            process.exit(1);
+          }
+          if (!fs.existsSync(shardsDir)) {
+            console.error('FAIL: missing', shardsDir);
+            process.exit(1);
+          }
+          const map = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+          const n = Object.keys(map).length;
+          const shards = fs.readdirSync(shardsDir).filter((f) => f.endsWith('.json'));
+          if (n < 100 || shards.length < 1) {
+            console.error('FAIL: stroke map too small or no shards', { chars: n, shardFiles: shards.length });
+            process.exit(1);
+          }
+          let bytes = fs.statSync(mapPath).size;
+          for (const f of shards) {
+            bytes += fs.statSync(path.join(shardsDir, f)).size;
+          }
+          console.log('OK stroke-data in dist:', n, 'chars,', shards.length, 'shards, ~' + (bytes / 1024 / 1024).toFixed(2) + ' MB');
+          NODE
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

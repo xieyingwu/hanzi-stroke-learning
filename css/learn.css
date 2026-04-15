@@ -51,7 +51,7 @@
   right: 0;
   /* 高于顶栏 z-index:100，避免真机顶栏更高时进度条被挡在底下「看不见」 */
   z-index: 110;
-  padding: 8px 14px 10px;
+  padding: 10px 14px 12px;
   box-sizing: border-box;
   background: linear-gradient(
     180deg,
@@ -60,6 +60,83 @@
   );
   box-shadow: 0 4px 14px rgba(58, 58, 92, 0.12);
   border-bottom: 1px solid rgba(77, 150, 255, 0.22);
+}
+.stroke-asset-bar-mode--done {
+  background: transparent;
+}
+.stroke-asset-bar-mode--done.stroke-asset-bar-mode--warn {
+  padding-top: 2px;
+}
+.stroke-asset-bar-mode--done.stroke-asset-bar-mode--warn .stroke-asset-bar-label {
+  color: #8a5a1a;
+}
+.stroke-asset-bar-mode--done.stroke-asset-bar-mode--warn .stroke-asset-bar-desc--done {
+  color: #7a5a30;
+}
+.stroke-asset-bar-desc {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mid);
+  line-height: 1.45;
+  margin: 0 0 8px;
+}
+.stroke-asset-bar-desc--done {
+  margin: 0;
+  color: #3a6a4a;
+}
+.stroke-asset-bar-row--done {
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stroke-asset-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.stroke-asset-bar-retry {
+  padding: 8px 14px;
+  min-height: 40px;
+  border-radius: 12px;
+  border: none;
+  font-size: 14px;
+  font-weight: 800;
+  color: white;
+  background: linear-gradient(135deg, #4d96ff, #6bcb77);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-appearance: none;
+  appearance: none;
+  box-shadow: 0 2px 10px rgba(77, 150, 255, 0.35);
+}
+.stroke-asset-bar-retry:active {
+  transform: scale(0.96);
+}
+.stroke-asset-bar-close {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  min-height: 40px;
+  border-radius: 12px;
+  border: none;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--dark);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 8px rgba(58, 58, 92, 0.15);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.stroke-asset-bar-close:active {
+  transform: scale(0.96);
+}
+.stroke-asset-bar-mode--done .stroke-asset-bar-label {
+  flex: 1;
+  margin-right: 8px;
+  font-size: 14px;
+  line-height: 1.35;
 }
 .stroke-asset-bar-row {
   display: flex;
@@ -93,16 +170,24 @@
   transition: width 0.2s ease-out;
 }
 
-/* 勿对 body 使用 pointer-events:none：部分移动浏览器会吞掉整页触摸，导致「点了没反应」。
+/* 勿对 body 使用 pointer-events:none：部分移动浏览器会吞掉整页触摸。
    预热期间若用户点字，由 openChar() 提示稍候。 */
 body.stroke-assets-loading {
-  --stroke-asset-bar-h: 52px;
+  --stroke-asset-bar-h: 72px;
+}
+/* 顶部条「资源已就绪」提示（可关闭），与加载中占用同一预留高度 */
+body.stroke-assets-top-hint {
+  --stroke-asset-bar-h: 72px;
+}
+body.stroke-assets-loading #learnPage,
+body.stroke-assets-top-hint #learnPage {
+  padding-top: var(--stroke-asset-bar-h);
 }
 body.stroke-assets-loading #learnPage {
-  padding-top: var(--stroke-asset-bar-h);
   user-select: none;
 }
-body.stroke-assets-loading .learn-sticky-toolbar {
+body.stroke-assets-loading .learn-sticky-toolbar,
+body.stroke-assets-top-hint .learn-sticky-toolbar {
   top: calc(var(--top-nav-h) + var(--stroke-asset-bar-h));
 }
 
@@ -360,6 +445,8 @@ body.stroke-assets-loading .learn-sticky-toolbar {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(77, 150, 255, 0.12);
   box-shadow: var(--card-shadow);
   border: 3px solid transparent;
   transition: all 0.25s var(--bounce);

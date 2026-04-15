@@ -47,17 +47,15 @@ function bindLearnDelegatedEvents() {
   }
   if (grid && !grid._delegBound) {
     grid._delegBound = true;
-    var lastOpenChar = "";
-    var lastOpenTs = 0;
+    var lastGridActivationTs = 0;
     function openFromCard(e) {
       var card = e.target.closest("[data-char]");
       if (!card) return;
+      var now = Date.now();
+      if (now - lastGridActivationTs < 420) return;
+      lastGridActivationTs = now;
       var raw = card.getAttribute("data-char") || "";
       var ch = decodeURIComponent(raw);
-      var now = Date.now();
-      if (ch === lastOpenChar && now - lastOpenTs < 450) return;
-      lastOpenChar = ch;
-      lastOpenTs = now;
       openChar(ch);
     }
     if (usePointer) {
@@ -65,9 +63,15 @@ function bindLearnDelegatedEvents() {
         if (e.pointerType === "mouse" && e.button !== 0) return;
         openFromCard(e);
       });
-    } else {
-      grid.addEventListener("click", openFromCard);
     }
+    grid.addEventListener("click", openFromCard);
+    grid.addEventListener(
+      "touchend",
+      function (e) {
+        openFromCard(e);
+      },
+      { passive: true }
+    );
   }
   var learnedSubRow = document.getElementById("learnedSubRow");
   if (learnedSubRow && !learnedSubRow._delegBound) {
@@ -178,30 +182,155 @@ function scheduleAutoSpeakAfterModal(char, loadSeq) {
 
 
 // ============================================================
-//  初始化
+//  顶部笔顺资源条：加载进度 + 完成后可关闭提示
 // ============================================================
-async function init() {
-  await loadLearnData();
-  syncStateFromProgressStore();
-  bindLearnDelegatedEvents();
-  renderCategories();
-  renderGrid();
-  updateStats();
-  updateStarDisplay();
+var STROKE_BAR_DISMISS_KEY = 'strokeAssetBarDismissed';
 
+function setupStrokeAssetBarClose() {
+  var btn = document.getElementById('strokeAssetBarClose');
+  if (!btn || btn._strokeCloseBound) return;
+  btn._strokeCloseBound = true;
+  btn.addEventListener('click', function () {
+    var bar = document.getElementById('strokeAssetBar');
+    var loadingEl = document.getElementById('strokeAssetLoading');
+    var doneEl = document.getElementById('strokeAssetDone');
+    var warn = doneEl && doneEl.classList.contains('stroke-asset-bar-mode--warn');
+    if (bar) bar.hidden = true;
+    if (loadingEl) loadingEl.hidden = false;
+    if (doneEl) doneEl.hidden = true;
+    document.body.classList.remove('stroke-assets-loading', 'stroke-assets-top-hint');
+    if (!warn) {
+      try {
+        sessionStorage.setItem(STROKE_BAR_DISMISS_KEY, '1');
+      } catch (e) {
+        /* ignore */
+      }
+    }
+  });
+}
+
+function setupStrokeAssetRetry() {
+  var btn = document.getElementById('strokeAssetRetryBtn');
+  if (!btn || btn._strokeRetryBound) return;
+  btn._strokeRetryBound = true;
+  btn.addEventListener('click', function () {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    runStrokePackWarm({ isRetry: true }).finally(function () {
+      btn.disabled = false;
+    });
+  });
+}
+
+function showStrokeAssetBarDone(warmResult) {
+  setupStrokeAssetBarClose();
+  var bar = document.getElementById('strokeAssetBar');
+  var loadingEl = document.getElementById('strokeAssetLoading');
+  var doneEl = document.getElementById('strokeAssetDone');
+  var titleEl = document.getElementById('strokeAssetDoneTitle');
+  var subEl = document.getElementById('strokeAssetDoneSub');
+  if (!bar || !loadingEl || !doneEl) return;
+
+  var ok = warmResult && warmResult.ok === true;
+  if (ok) {
+    try {
+      if (sessionStorage.getItem(STROKE_BAR_DISMISS_KEY) === '1') {
+        bar.hidden = true;
+        document.body.classList.remove('stroke-assets-top-hint');
+        return;
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  loadingEl.hidden = true;
+  doneEl.hidden = false;
+  bar.hidden = false;
+  bar.setAttribute('aria-busy', 'false');
+
+  var mode = warmResult && warmResult.cacheMode ? warmResult.cacheMode : 'unknown';
+
+  var retryBtn = document.getElementById('strokeAssetRetryBtn');
+  if (ok) {
+    if (retryBtn) retryBtn.hidden = true;
+    if (titleEl) {
+      if (mode === 'all_cache') {
+        titleEl.textContent = '✅ 笔顺资源已就绪（已使用浏览器缓存）';
+      } else if (mode === 'network') {
+        titleEl.textContent = '✅ 笔顺资源下载完成';
+      } else if (mode === 'partial') {
+        titleEl.textContent = '✅ 笔顺资源已就绪（部分来自缓存）';
+      } else {
+        titleEl.textContent = '✅ 笔顺资源已就绪';
+      }
+    }
+    if (subEl) {
+      if (mode === 'all_cache') {
+        subEl.textContent = '本地缓存已命中，离线可更快加载；点击下方汉字即可打开练字弹窗。';
+      } else if (mode === 'network') {
+        subEl.textContent = '已下载并写入本机缓存，下次访问可更快；点击下方汉字即可练习。';
+      } else {
+        subEl.textContent = '可点击下方汉字打开练字弹窗。';
+      }
+    }
+    doneEl.classList.remove('stroke-asset-bar-mode--warn');
+  } else {
+    var canRetry =
+      typeof HanziAdapter !== 'undefined' &&
+      typeof HanziAdapter.warmStrokePacksWithProgress === 'function' &&
+      warmResult &&
+      warmResult.reason !== 'no_adapter';
+    if (retryBtn) retryBtn.hidden = !canRetry;
+    if (titleEl) titleEl.textContent = '⚠️ 笔顺资源未全部下载完成';
+    if (subEl) {
+      if (warmResult && warmResult.reason === 'shard_failed' && warmResult.failedCount) {
+        subEl.textContent =
+          '部分分片失败（已下载的会保留在内存与浏览器缓存）。请点击「继续下载」从断点补齐，无需从头开始。';
+      } else if (warmResult && warmResult.reason === 'no_map') {
+        subEl.textContent = '未找到笔顺分片映射（stroke-shard-map.json）。请确认已执行构建并部署 stroke-data。';
+      } else {
+        subEl.textContent =
+          '请检查网络后点击「继续下载」重试；已成功的分片不会重复下载。';
+      }
+    }
+    doneEl.classList.add('stroke-asset-bar-mode--warn');
+  }
+
+  document.body.classList.add('stroke-assets-top-hint');
+}
+
+/**
+ * 首屏 / 「继续下载」共用：预热笔顺分片（失败的分片可再次调用，已在内存中的分片会跳过，实现断点续传）
+ */
+async function runStrokePackWarm(options) {
+  options = options || {};
+  var isRetry = options.isRetry === true;
   const bar = document.getElementById('strokeAssetBar');
   const fill = document.getElementById('strokeAssetFill');
   const pct = document.getElementById('strokeAssetPct');
+  const loadingEl = document.getElementById('strokeAssetLoading');
+  const doneEl = document.getElementById('strokeAssetDone');
+  const descEl = document.getElementById('strokeAssetDesc');
+
+  document.body.classList.remove('stroke-assets-top-hint');
   document.body.classList.add('stroke-assets-loading');
   if (bar) {
     bar.hidden = false;
     bar.setAttribute('aria-busy', 'true');
+    if (loadingEl) loadingEl.hidden = false;
+    if (doneEl) doneEl.hidden = true;
+  }
+  if (descEl) {
+    descEl.textContent = isRetry
+      ? '从断点继续下载剩余分片，已完成的不会重复下载'
+      : '全量资源下载中，完成后即可流畅打开练字弹窗';
   }
   if (fill) fill.style.width = '0%';
   if (pct) pct.textContent = '0%';
 
   const base = typeof getAppBaseUrl === 'function' ? getAppBaseUrl() : undefined;
-  var warmResult = { ok: false };
+  var warmResult = { ok: false, cacheMode: 'unknown' };
   if (typeof HanziAdapter !== 'undefined' && typeof HanziAdapter.warmStrokePacksWithProgress === 'function') {
     warmResult = await HanziAdapter.warmStrokePacksWithProgress(base, function (ratio) {
       var p = Math.min(100, Math.max(0, Math.round(ratio * 100)));
@@ -211,14 +340,29 @@ async function init() {
   } else {
     if (fill) fill.style.width = '100%';
     if (pct) pct.textContent = '100%';
+    warmResult = { ok: false, reason: 'no_adapter', cacheMode: 'unknown' };
   }
 
   window.__strokePackWarmed = warmResult.ok === true;
   document.body.classList.remove('stroke-assets-loading');
-  if (bar) {
-    bar.hidden = true;
-    bar.setAttribute('aria-busy', 'false');
-  }
+  showStrokeAssetBarDone(warmResult);
+}
+
+// ============================================================
+//  初始化
+// ============================================================
+async function init() {
+  await loadLearnData();
+  syncStateFromProgressStore();
+  bindLearnDelegatedEvents();
+  setupStrokeAssetBarClose();
+  setupStrokeAssetRetry();
+  renderCategories();
+  renderGrid();
+  updateStats();
+  updateStarDisplay();
+
+  await runStrokePackWarm({ isRetry: false });
 }
 
 function getAllChars() {
