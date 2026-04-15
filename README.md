@@ -70,7 +70,7 @@ npm run preview
 
 ## 笔顺数据（推荐：分片打包）
 
-生产构建会执行 `npm run build:stroke-data`：根据 `data/hanzi-meta.json` 从依赖包 `hanzi-writer-data` 生成 **`stroke-data/`**（字表映射 + 每约 220 字一个 JSON 分片，整片缓存），并随 `vite build` 复制到 `dist/stroke-data/`。首屏只预取约 30KB 的 `stroke-shard-map.json`，点开某字时再拉取**所在分片一次**（同分片内其它字复用缓存），移动端比逐字请求 CDN 更稳。
+生产构建会执行 `npm run build:stroke-data`：根据 `data/hanzi-meta.json` 从依赖包 `hanzi-writer-data` 生成 **`stroke-data/`**（字表映射 + 每约 220 字一个 JSON 分片，整片缓存），并随 `vite build` 复制到 `dist/stroke-data/`。**首次进入页面**会在顶栏下方显示笔顺资源加载进度条，并拉齐 map 与全部分片到内存（加载完成前不可操作学习区）；完成后，字表内且落在分片中的字将**跳过全屏加载层**，直接打开学习弹层。若无 `stroke-data`（仅本地未生成分片），则仍回退为点字后再拉 map/分片或 CDN 单字。
 
 - **GitHub Actions** 已在 `npm run build` 中自动生成分片，无需手工操作。
 - **本地开发**：可先执行 `npm run build:stroke-data` 再 `npm run dev`，与线上一致走分片；不生成时仍回退到下方「单字 CDN」。
@@ -117,6 +117,7 @@ python3 scripts/extract_learn_data.py
 - **微信、QQ、微博等应用内浏览器**：常对网页语音有限制，可能出现**无声**；若遇此情况，请用右上角菜单在**系统浏览器**中打开。
 - 页面会在检测到**无中文语音**或**合成失败**时通过 Toast 提示；开发调试可在控制台查看 `Voice.getVoiceStatus()`（返回是否已加载语音列表、是否匹配到中文音色等）。
 - 朗读优先使用字表中的**拼音**（与多音字标注一致），以减少浏览器 TTS 把汉字读错音的情况；仍受本机语音引擎影响。
+- **自动播报**在学习弹层展开后约 **3 秒**触发，且仅在笔顺加载成功、弹层已显示之后才会安排，避免出现「有声无窗」。若自动播报因浏览器策略无声，可点弹层内「朗读」手动收听。
 
 ## 代码结构（概要）
 

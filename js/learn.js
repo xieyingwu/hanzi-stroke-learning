@@ -106,6 +106,18 @@ const state = {
   strokeCount:     0,
   currentStroke:   -1,
   isAnimating:     false,
+  /** 连播全部笔画播完，主按钮显示「重置」 */
+  strokeAnimComplete: false,
+  /** 连播在「两笔之间」暂停，继续时从 nextStrokeToPlay 接着播 */
+  playbackPaused: false,
+  /** 用户点了暂停：当前笔播完再进入 playbackPaused */
+  pendingPauseAfterStroke: false,
+  /** 暂停后下一笔的起始索引（0～strokeCount-1） */
+  nextStrokeToPlay: null,
+  /** 使用「下一笔」逐步演示（非连播） */
+  manualStepMode: false,
+  /** 下一笔已写完最后一笔，再点「下一笔」则清空回到初始 */
+  stepAllDone: false,
 };
 
 /** 弹层刚打开时，移动端仍会派发一次「幽灵 click」（原触摸点落在全屏遮罩上），会误触关闭；短时间内忽略遮罩关闭 */
@@ -117,21 +129,96 @@ let charLoadSeq = 0;
 /** 逐笔 animateStroke 链：暂停/关闭时递增，丢弃过期 onComplete */
 let strokeAnimSeq = 0;
 
+function canUseNextStrokeButton() {
+  if (!state.writerReady || !state.writer) return false;
+  if (state.strokeAnimComplete) return false;
+  if (state.playbackPaused && !state.manualStepMode) return false;
+  if (state.pendingPauseAfterStroke && !state.manualStepMode) return false;
+  if (state.isAnimating) return false;
+  if (state.manualStepMode) return true;
+  return state.currentStroke === -1;
+}
+
+function updateNextBtnEnabled() {
+  var btn = document.getElementById('nextBtn');
+  if (!btn) return;
+  var ok = canUseNextStrokeButton();
+  btn.disabled = !ok;
+  btn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+}
+
+/** 弹层展开后的自动播报延迟（ms）；仅在笔顺加载成功并已 reveal 弹层后启动 */
+const AUTO_SPEAK_DELAY_MS = 3000;
+let autoSpeakTimerId = null;
+
+function clearAutoSpeakTimer() {
+  if (autoSpeakTimerId != null) {
+    clearTimeout(autoSpeakTimerId);
+    autoSpeakTimerId = null;
+  }
+}
+
+/**
+ * 学习弹层已展示后再延迟播报，避免「有声无窗」；关闭/换字时由 clearAutoSpeakTimer 取消。
+ */
+function scheduleAutoSpeakAfterModal(char, loadSeq) {
+  clearAutoSpeakTimer();
+  const meta = HANZI_META[char];
+  autoSpeakTimerId = window.setTimeout(function () {
+    autoSpeakTimerId = null;
+    if (loadSeq !== charLoadSeq) return;
+    if (typeof Voice === 'undefined' || !Voice.isSupported()) return;
+    if (meta && meta.pinyin && String(meta.pinyin).trim()) {
+      Voice.speakPinyin(meta.pinyin, { onIssue: handleVoiceIssue });
+    } else {
+      Voice.speakChar(char, { onIssue: handleVoiceIssue });
+    }
+  }, AUTO_SPEAK_DELAY_MS);
+}
+
 
 // ============================================================
 //  初始化
 // ============================================================
 async function init() {
   await loadLearnData();
-  if (typeof window.StrokeCache !== 'undefined' && typeof StrokeCache.prefetchStrokeAssets === 'function') {
-    StrokeCache.prefetchStrokeAssets(typeof getAppBaseUrl === 'function' ? getAppBaseUrl() : undefined);
-  }
   syncStateFromProgressStore();
   bindLearnDelegatedEvents();
   renderCategories();
   renderGrid();
   updateStats();
   updateStarDisplay();
+
+  const bar = document.getElementById('strokeAssetBar');
+  const fill = document.getElementById('strokeAssetFill');
+  const pct = document.getElementById('strokeAssetPct');
+  document.body.classList.add('stroke-assets-loading');
+  if (bar) {
+    bar.hidden = false;
+    bar.setAttribute('aria-busy', 'true');
+  }
+  if (fill) fill.style.width = '0%';
+  if (pct) pct.textContent = '0%';
+
+  const base = typeof getAppBaseUrl === 'function' ? getAppBaseUrl() : undefined;
+  var warmResult = { ok: false };
+  if (typeof HanziAdapter !== 'undefined' && typeof HanziAdapter.warmStrokePacksWithProgress === 'function') {
+    warmResult = await HanziAdapter.warmStrokePacksWithProgress(base, function (ratio) {
+      var p = Math.min(100, Math.max(0, Math.round(ratio * 100)));
+      if (fill) fill.style.width = p + '%';
+      if (pct) pct.textContent = p + '%';
+    });
+  } else {
+    if (fill) fill.style.width = '100%';
+    if (pct) pct.textContent = '100%';
+  }
+
+  window.__strokePackWarmed = warmResult.ok === true;
+  document.body.classList.remove('stroke-assets-loading');
+  if (bar) {
+    bar.hidden = true;
+    bar.setAttribute('aria-busy', 'false');
+  }
 }
 
 function getAllChars() {
@@ -291,10 +378,14 @@ window.getAgeBasedDailyMin = getAgeBasedDailyMin;
 function updateTodayProgressUI() {
   const target = getDailyLearnTarget();
   const done = ProgressStore.getTodayNewLearnedCount();
-  const pct = target > 0 ? Math.min(100, Math.round((done / target) * 100)) : 0;
+  const reached = target > 0 && done >= target;
+  const pct = target > 0 ? (reached ? 100 : Math.min(100, Math.round((done / target) * 100))) : 0;
   const fill = document.getElementById('progressFill');
   const txt = document.getElementById('progressText');
-  if (fill) fill.style.width = pct + '%';
+  if (fill) {
+    fill.style.width = pct + '%';
+    fill.classList.toggle('progress-fill--complete', reached);
+  }
   if (txt) txt.textContent = done + '/' + target;
 }
 
@@ -354,6 +445,7 @@ function openChar(char) {
   if (!meta) return;
 
   const loadSeq = ++charLoadSeq;
+  clearAutoSpeakTimer();
 
   var act = ProgressStore.recordLearningActivity();
   state.streak = act.streak;
@@ -386,26 +478,27 @@ function openChar(char) {
 
   setMascotMsg(`正在学"${char}"，${meta.meaning}，${meta.pinyin}，笔顺动画马上开始！`);
 
-  // 先全屏加载层，不打开学习弹层
+  // 先全屏加载层，不打开学习弹层（笔顺包已首屏预热且该字在分片内时跳过，直接走笔顺创建 → 弹层）
   const loadOverlay = document.getElementById('charLoadOverlay');
+  const useStrokeFastPath =
+    window.__strokePackWarmed === true &&
+    window.__strokeShardMap &&
+    Object.prototype.hasOwnProperty.call(window.__strokeShardMap, char);
+
   loadOverlay.classList.remove('char-load-overlay--error');
   loadOverlay.setAttribute('aria-busy', 'true');
   document.getElementById('charLoadChar').textContent = char;
   document.getElementById('charLoadMsg').textContent = '正在加载笔顺数据…';
   const charLoadSpinner = document.getElementById('charLoadSpinner');
   if (charLoadSpinner) charLoadSpinner.style.display = '';
-  loadOverlay.classList.add('active');
-
-  // 自动朗读：须在用户点击的同步调用栈内触发 speechSynthesis，不能用 setTimeout，
-  // 否则 Safari / iOS 与部分 Chrome 会按「非用户手势」静默拦截，导致无声音。
-  // 优先读字表中的拼音（与多音字标注一致）；无拼音时再读单字。
-  if (typeof Voice !== 'undefined' && Voice.isSupported()) {
-    if (meta.pinyin && String(meta.pinyin).trim()) {
-      Voice.speakPinyin(meta.pinyin, { onIssue: handleVoiceIssue });
-    } else {
-      Voice.speakChar(char, { onIssue: handleVoiceIssue });
-    }
+  if (useStrokeFastPath) {
+    loadOverlay.classList.remove('active');
+  } else {
+    loadOverlay.classList.add('active');
   }
+
+  // 自动朗读改到笔顺加载成功、学习弹层展开后延迟 3s（见 scheduleAutoSpeakAfterModal），
+  // 不在此处触发，避免出现「已发声但弹层未打开」的感知。
 
   // 销毁旧 writer（如有），清空容器
   const container = document.getElementById('hanziWriterContainer');
@@ -438,6 +531,10 @@ function revealCharModalAfterLoad() {
 function closeCharLoading() {
   charLoadSeq++;
   strokeAnimSeq++;
+  clearAutoSpeakTimer();
+  if (typeof window.speechSynthesis !== 'undefined') {
+    try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+  }
   const overlay = document.getElementById('charLoadOverlay');
   if (overlay) {
     overlay.classList.remove('active');
@@ -465,6 +562,13 @@ function closeCharLoading() {
   if (step) step.textContent = '';
   const playBtn = document.getElementById('playBtn');
   if (playBtn) playBtn.textContent = '▶ 播放';
+  state.strokeAnimComplete = false;
+  state.playbackPaused = false;
+  state.pendingPauseAfterStroke = false;
+  state.nextStrokeToPlay = null;
+  state.manualStepMode = false;
+  state.stepAllDone = false;
+  updateNextBtnEnabled();
 }
 
 function handleCharLoadOverlayClick(e) {
@@ -491,12 +595,17 @@ function createWriter(char, loadSeq) {
       renderStrokeDots(data.strokes.length);
 
       revealCharModalAfterLoad();
-      setTimeout(function () { doPlay(); }, 300);
+      scheduleAutoSpeakAfterModal(char, loadSeq);
+      setTimeout(function () {
+        beginStrokePlaybackFromStart();
+        updateNextBtnEnabled();
+      }, 300);
     },
     onLoadCharDataError: function() {
       if (loadSeq !== charLoadSeq) return;
       document.getElementById('loadingHint').textContent = '笔顺数据加载失败，请检查网络';
       const overlay = document.getElementById('charLoadOverlay');
+      overlay.classList.add('active');
       overlay.classList.add('char-load-overlay--error');
       document.getElementById('charLoadMsg').textContent = '笔顺数据加载失败，请检查网络后重试';
       overlay.setAttribute('aria-busy', 'false');
@@ -538,6 +647,27 @@ function syncIndicatorToStroke(strokeIdx) {
 //  控制按钮
 // ============================================================
 
+/** 从头开始整字连播（与首次点「播放」相同） */
+function beginStrokePlaybackFromStart() {
+  strokeAnimSeq++;
+  state.currentStroke = -1;
+  state.isAnimating = true;
+  state.strokeAnimComplete = false;
+  state.playbackPaused = false;
+  state.pendingPauseAfterStroke = false;
+  state.nextStrokeToPlay = null;
+  state.manualStepMode = false;
+  state.stepAllDone = false;
+  var playBtn = document.getElementById('playBtn');
+  if (playBtn) playBtn.textContent = '⏸ 暂停';
+  document.querySelectorAll('.stroke-dot').forEach(function (d) {
+    d.classList.remove('current', 'done');
+  });
+  document.getElementById('strokeStep').textContent = '';
+  runStrokeAnimationChain(0);
+  updateNextBtnEnabled();
+}
+
 function runStrokeAnimationChain(strokeIndex) {
   var mySeq = strokeAnimSeq;
   if (!state.isAnimating || !state.writer || !state.writerReady) return;
@@ -545,11 +675,16 @@ function runStrokeAnimationChain(strokeIndex) {
   if (strokeIndex >= state.strokeCount) {
     if (mySeq !== strokeAnimSeq) return;
     state.isAnimating = false;
+    state.playbackPaused = false;
     state.currentStroke = state.strokeCount - 1;
-    document.getElementById('playBtn').textContent = '▶ 重播';
+    state.strokeAnimComplete = true;
+    state.pendingPauseAfterStroke = false;
+    state.nextStrokeToPlay = null;
+    document.getElementById('playBtn').textContent = '重置';
     document.getElementById('strokeStep').textContent = '完成！🎉';
     for (var i = 0; i < state.strokeCount; i++) setDotState(i, 'done');
     showToast('🎊 写完啦，真棒！');
+    updateNextBtnEnabled();
     return;
   }
 
@@ -559,15 +694,36 @@ function runStrokeAnimationChain(strokeIndex) {
   try {
     state.writer.animateStroke(strokeIndex, {
       onComplete: function () {
-        if (mySeq !== strokeAnimSeq || !state.isAnimating) return;
+        if (mySeq !== strokeAnimSeq) return;
+        if (state.playbackPaused) return;
+        if (!state.isAnimating) return;
         setDotState(strokeIndex, 'done');
+
+        if (state.pendingPauseAfterStroke) {
+          state.pendingPauseAfterStroke = false;
+          if (strokeIndex >= state.strokeCount - 1) {
+            runStrokeAnimationChain(strokeIndex + 1);
+            return;
+          }
+          state.isAnimating = false;
+          state.playbackPaused = true;
+          state.nextStrokeToPlay = strokeIndex + 1;
+          document.getElementById('playBtn').textContent = '▶ 播放';
+          updateNextBtnEnabled();
+          return;
+        }
         runStrokeAnimationChain(strokeIndex + 1);
       }
     });
+    updateNextBtnEnabled();
   } catch (e) {
     console.warn('播放失败:', e);
     state.isAnimating = false;
+    state.playbackPaused = false;
+    state.pendingPauseAfterStroke = false;
+    state.nextStrokeToPlay = null;
     document.getElementById('playBtn').textContent = '▶ 播放';
+    updateNextBtnEnabled();
   }
 }
 
@@ -576,23 +732,48 @@ function doPlay() {
     showToast('⏳ 数据加载中，请稍候…');
     return;
   }
+  if (state.strokeAnimComplete) {
+    doReset();
+    return;
+  }
+  if (state.manualStepMode) {
+    doReset();
+    setTimeout(function () {
+      if (!state.writer || !state.writerReady) return;
+      beginStrokePlaybackFromStart();
+    }, 300);
+    return;
+  }
+  if (state.playbackPaused) {
+    if (state.nextStrokeToPlay == null || state.nextStrokeToPlay >= state.strokeCount) {
+      state.playbackPaused = false;
+      document.getElementById('playBtn').textContent = '▶ 播放';
+      updateNextBtnEnabled();
+      showToast('请从「播放」重新开始');
+      return;
+    }
+    state.isAnimating = true;
+    state.playbackPaused = false;
+    state.pendingPauseAfterStroke = false;
+    var n = state.nextStrokeToPlay;
+    state.nextStrokeToPlay = null;
+    document.getElementById('playBtn').textContent = '⏸ 暂停';
+    runStrokeAnimationChain(n);
+    updateNextBtnEnabled();
+    return;
+  }
   if (state.isAnimating) {
-    strokeAnimSeq++;
-    try { state.writer.cancelAnimation(); } catch (e) {}
-    try { state.writer.pauseAnimation(); } catch (e2) {}
-    state.isAnimating = false;
-    document.getElementById('playBtn').textContent = '▶ 继续';
+    state.pendingPauseAfterStroke = true;
+    document.getElementById('playBtn').textContent = '⏸ 暂停';
+    updateNextBtnEnabled();
     return;
   }
 
-  strokeAnimSeq++;
-  state.currentStroke = -1;
-  state.isAnimating = true;
-  document.getElementById('playBtn').textContent = '⏸ 暂停';
-  document.querySelectorAll('.stroke-dot').forEach(function (d) { d.classList.remove('current', 'done'); });
-  document.getElementById('strokeStep').textContent = '';
-
-  runStrokeAnimationChain(0);
+  doReset();
+  setTimeout(function () {
+    if (!state.writer || !state.writerReady) return;
+    beginStrokePlaybackFromStart();
+  }, 300);
 }
 
 function doNext() {
@@ -600,31 +781,94 @@ function doNext() {
     showToast('⏳ 数据加载中，请稍候…');
     return;
   }
-  if (state.isAnimating) return;
-
-  const next = state.currentStroke + 1;
-  if (next >= state.strokeCount) {
-    showToast('🎉 所有笔画都写完啦！');
-    document.getElementById('strokeStep').textContent = '完成！🎉';
+  if (!canUseNextStrokeButton()) {
+    showToast('连播或笔画动画进行中时无法使用「下一笔」，请先重置或等待结束');
     return;
   }
 
-  state.currentStroke = next;
-  syncIndicatorToStroke(next);
+  if (state.manualStepMode && state.stepAllDone) {
+    doReset();
+    return;
+  }
 
-  state.writer.animateStroke(next, {
-    onComplete: function() {}
-  });
+  if (!state.manualStepMode && state.currentStroke === -1) {
+    strokeAnimSeq++;
+    state.manualStepMode = true;
+    state.stepAllDone = false;
+    state.isAnimating = true;
+    state.currentStroke = 0;
+    syncIndicatorToStroke(0);
+    var mySeq0 = strokeAnimSeq;
+    try {
+      state.writer.animateStroke(0, {
+        onComplete: function () {
+          if (mySeq0 !== strokeAnimSeq) return;
+          state.isAnimating = false;
+          setDotState(0, 'done');
+          if (state.strokeCount <= 1) {
+            state.stepAllDone = true;
+            document.getElementById('strokeStep').textContent = '完成！🎉';
+            for (var j = 0; j < state.strokeCount; j++) setDotState(j, 'done');
+          }
+          updateNextBtnEnabled();
+        }
+      });
+    } catch (e) {
+      console.warn('下一笔失败:', e);
+      state.isAnimating = false;
+      state.manualStepMode = false;
+      updateNextBtnEnabled();
+    }
+    updateNextBtnEnabled();
+    return;
+  }
+
+  if (state.manualStepMode && !state.stepAllDone) {
+    var nextIdx = state.currentStroke + 1;
+    if (nextIdx >= state.strokeCount) return;
+    strokeAnimSeq++;
+    state.isAnimating = true;
+    state.currentStroke = nextIdx;
+    syncIndicatorToStroke(nextIdx);
+    var mySeq1 = strokeAnimSeq;
+    try {
+      state.writer.animateStroke(nextIdx, {
+        onComplete: function () {
+          if (mySeq1 !== strokeAnimSeq) return;
+          state.isAnimating = false;
+          setDotState(nextIdx, 'done');
+          if (nextIdx >= state.strokeCount - 1) {
+            state.stepAllDone = true;
+            document.getElementById('strokeStep').textContent = '完成！🎉';
+            for (var k = 0; k < state.strokeCount; k++) setDotState(k, 'done');
+          }
+          updateNextBtnEnabled();
+        }
+      });
+    } catch (e2) {
+      console.warn('下一笔失败:', e2);
+      state.isAnimating = false;
+      updateNextBtnEnabled();
+    }
+    updateNextBtnEnabled();
+  }
 }
 
 function doReset() {
   strokeAnimSeq++;
+  state.strokeAnimComplete = false;
+  state.playbackPaused = false;
+  state.pendingPauseAfterStroke = false;
+  state.nextStrokeToPlay = null;
+  state.manualStepMode = false;
+  state.stepAllDone = false;
   if (!state.writer) {
     state.isAnimating   = false;
     state.currentStroke = -1;
     document.getElementById('playBtn').textContent      = '▶ 播放';
     document.getElementById('strokeStep').textContent   = '';
     document.querySelectorAll('.stroke-dot').forEach(function (d) { d.classList.remove('current', 'done'); });
+    updateNextBtnEnabled();
     return;
   }
   try { state.writer.cancelAnimation(); } catch (e) {}
@@ -643,6 +887,7 @@ function doReset() {
   } catch(e) {
     console.warn('重置失败:', e);
   }
+  updateNextBtnEnabled();
 }
 
 // ============================================================
@@ -699,10 +944,16 @@ function spawnStars() {
 // ============================================================
 function closeModal() {
   strokeAnimSeq++;
+  clearAutoSpeakTimer();
   if (state.writer) {
     try { state.writer.cancelAnimation(); } catch (e) {}
   }
   state.isAnimating = false;
+  state.playbackPaused = false;
+  state.pendingPauseAfterStroke = false;
+  state.nextStrokeToPlay = null;
+  state.manualStepMode = false;
+  state.stepAllDone = false;
   // 关闭时停止语音
   if (typeof Voice !== 'undefined' && Voice.isSupported()) {
     window.speechSynthesis && window.speechSynthesis.cancel();
@@ -714,6 +965,7 @@ function closeModal() {
     loadOv.classList.remove('char-load-overlay--error');
     loadOv.setAttribute('aria-busy', 'false');
   }
+  updateNextBtnEnabled();
 }
 function handleOverlayClick(e) {
   if (e.target !== document.getElementById('modalOverlay')) return;

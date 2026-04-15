@@ -26,6 +26,17 @@
   </div>
 </nav>
 
+<!-- 笔顺动画 JSON 首屏预加载（完成后可即时弹层） -->
+<div id="strokeAssetBar" class="stroke-asset-bar" role="status" aria-live="polite" aria-busy="true" hidden>
+  <div class="stroke-asset-bar-row">
+    <span class="stroke-asset-bar-label">✏️ 笔顺动画资源加载中</span>
+    <span class="stroke-asset-bar-pct" id="strokeAssetPct">0%</span>
+  </div>
+  <div class="stroke-asset-bar-track">
+    <div class="stroke-asset-bar-fill" id="strokeAssetFill" style="width:0%"></div>
+  </div>
+</div>
+
 <div class="main-content tab-page active" id="learnPage">
 
   <!-- 吉祥物提示 -->
@@ -87,24 +98,24 @@
 
 </div>
 
-<!-- 底部导航 -->
-<nav class="bottom-nav">
-  <div class="nav-item active" onclick="switchTab('learn',this)">
+<!-- 底部导航（使用 button 保证整格可点，避免 div+onclick 在部分机型上要点多次） -->
+<nav class="bottom-nav" aria-label="主导航">
+  <button type="button" class="nav-item active" onclick="switchTab('learn',this)" aria-current="page">
     <span class="nav-icon">✏️</span>
     <span class="nav-label">学习</span>
-  </div>
-  <div class="nav-item" onclick="switchTab('review',this)">
+  </button>
+  <button type="button" class="nav-item" onclick="switchTab('review',this)">
     <span class="nav-icon">🔁</span>
     <span class="nav-label">复习</span>
-  </div>
-  <div class="nav-item" onclick="switchTab('rank',this)">
+  </button>
+  <button type="button" class="nav-item" onclick="switchTab('rank',this)">
     <span class="nav-icon">🏆</span>
     <span class="nav-label">排行</span>
-  </div>
-  <div class="nav-item" onclick="switchTab('me',this)">
+  </button>
+  <button type="button" class="nav-item" onclick="switchTab('me',this)">
     <span class="nav-icon">🐼</span>
     <span class="nav-label">我的</span>
-  </div>
+  </button>
 </nav>
 
 <!-- ===== 我的 - 页面内容 ===== -->
@@ -357,67 +368,72 @@
   </div>
 </div>
 
-<!-- ===== 学习弹层 ===== -->
+<!-- ===== 学习弹层（底部按钮固定在非滚动区，避免与滚动竞争导致要点多次） ===== -->
 <div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
   <div class="modal-sheet" id="modalSheet">
-    <div class="modal-handle"></div>
-    <button class="close-btn" onclick="closeModal()">✕</button>
+    <div class="modal-sheet-fixed">
+      <div class="modal-handle-wrap" id="modalSwipeHandle" aria-label="向下拖动可关闭">
+        <div class="modal-handle"></div>
+      </div>
+      <button type="button" class="close-btn" onclick="closeModal()">✕</button>
+    </div>
 
-    <!-- 汉字信息 -->
-    <div class="modal-header">
-      <div class="modal-char-big" id="modalCharBig">字</div>
-      <div class="modal-char-info">
-        <div class="char-tags-row">
-          <span class="pinyin-tag" id="modalPinyin">pīn yīn</span>
-          <span class="stroke-count-tag" id="modalStrokeCount">x画</span>
+    <div class="modal-sheet-scroll">
+      <!-- 汉字信息 -->
+      <div class="modal-header">
+        <div class="modal-char-big" id="modalCharBig">字</div>
+        <div class="modal-char-info">
+          <div class="char-tags-row">
+            <span class="pinyin-tag" id="modalPinyin">pīn yīn</span>
+            <span class="stroke-count-tag" id="modalStrokeCount">x画</span>
+          </div>
+          <button type="button" class="voice-btn" id="voiceBtn" onclick="voiceSpeakCurrent()" title="朗读汉字">
+            🔊 <span class="voice-btn-label">朗读</span>
+          </button>
         </div>
-        <button class="voice-btn" id="voiceBtn" onclick="voiceSpeakCurrent()" title="朗读汉字">
-          🔊 <span class="voice-btn-label">朗读</span>
-        </button>
+      </div>
+
+      <!-- 笔顺动画区 -->
+      <div class="stroke-canvas-wrap">
+        <div class="canvas-label">
+          ✏️ 笔顺动画
+          <span id="strokeStep"></span>
+        </div>
+
+        <!-- Hanzi Writer 挂载点（含田字格叠层） -->
+        <div style="position:relative; width:220px; height:220px;">
+          <!-- 田字格 SVG 背景 -->
+          <svg class="tian-grid-overlay" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+            <rect x="5" y="5" width="210" height="210" rx="8"
+                  fill="none" stroke="#C0C0D8" stroke-width="2"/>
+            <line x1="110" y1="5" x2="110" y2="215"
+                  stroke="#D8D8EE" stroke-width="1" stroke-dasharray="5,5"/>
+            <line x1="5" y1="110" x2="215" y2="110"
+                  stroke="#D8D8EE" stroke-width="1" stroke-dasharray="5,5"/>
+            <line x1="5" y1="5" x2="215" y2="215"
+                  stroke="#EEEEff" stroke-width="1" stroke-dasharray="4,6"/>
+            <line x1="215" y1="5" x2="5" y2="215"
+                  stroke="#EEEEff" stroke-width="1" stroke-dasharray="4,6"/>
+          </svg>
+          <!-- Hanzi Writer 渲染层 -->
+          <div id="hanziWriterContainer"></div>
+        </div>
+
+        <div class="stroke-indicators" id="strokeIndicators"></div>
+        <div class="loading-hint" id="loadingHint">⏳ 正在加载笔顺数据…</div>
       </div>
     </div>
 
-    <!-- 笔顺动画区 -->
-    <div class="stroke-canvas-wrap">
-      <div class="canvas-label">
-        ✏️ 笔顺动画
-        <span id="strokeStep"></span>
+    <div class="modal-sheet-footer">
+      <!-- 控制按钮（播放：播放 / 暂停；连播结束后为「重置」） -->
+      <div class="controls">
+        <button class="ctrl-btn btn-play" type="button" onclick="doPlay()" id="playBtn">▶ 播放</button>
+        <button class="ctrl-btn btn-next" type="button" onclick="doNext()" id="nextBtn">下一笔 →</button>
       </div>
-
-      <!-- Hanzi Writer 挂载点（含田字格叠层） -->
-      <div style="position:relative; width:220px; height:220px;">
-        <!-- 田字格 SVG 背景 -->
-        <svg class="tian-grid-overlay" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
-          <rect x="5" y="5" width="210" height="210" rx="8"
-                fill="none" stroke="#C0C0D8" stroke-width="2"/>
-          <line x1="110" y1="5" x2="110" y2="215"
-                stroke="#D8D8EE" stroke-width="1" stroke-dasharray="5,5"/>
-          <line x1="5" y1="110" x2="215" y2="110"
-                stroke="#D8D8EE" stroke-width="1" stroke-dasharray="5,5"/>
-          <line x1="5" y1="5" x2="215" y2="215"
-                stroke="#EEEEff" stroke-width="1" stroke-dasharray="4,6"/>
-          <line x1="215" y1="5" x2="5" y2="215"
-                stroke="#EEEEff" stroke-width="1" stroke-dasharray="4,6"/>
-        </svg>
-        <!-- Hanzi Writer 渲染层 -->
-        <div id="hanziWriterContainer"></div>
-      </div>
-
-      <div class="stroke-indicators" id="strokeIndicators"></div>
-      <div class="loading-hint" id="loadingHint">⏳ 正在加载笔顺数据…</div>
+      <button type="button" class="remember-btn" id="rememberBtn" onclick="markLearned()">
+        <span>🌟</span> 我记住了！
+      </button>
     </div>
-
-    <!-- 控制按钮 -->
-    <div class="controls">
-      <button class="ctrl-btn btn-reset" onclick="doReset()">🔄 重来</button>
-      <button class="ctrl-btn btn-play" onclick="doPlay()" id="playBtn">▶ 播放</button>
-      <button class="ctrl-btn btn-next" onclick="doNext()" id="nextBtn">下一笔 →</button>
-    </div>
-
-    <!-- 记住了 -->
-    <button class="remember-btn" id="rememberBtn" onclick="markLearned()">
-      <span>🌟</span> 我记住了！
-    </button>
   </div>
 </div>
 

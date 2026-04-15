@@ -21,8 +21,12 @@ function switchTab(tab, el) {
     return;
   }
 
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.remove('active');
+    n.removeAttribute('aria-current');
+  });
   el.classList.add('active');
+  el.setAttribute('aria-current', 'page');
   const msgs = {
     learn: '点击汉字卡片开始学习笔顺！✏️',
     me:    '这是你的个人空间！🐼'
@@ -45,15 +49,27 @@ function switchTab(tab, el) {
   }
 }
 
-//  触摸下滑关闭弹层
+//  触摸下滑关闭弹层：仅作用于顶部拖动手柄，避免在底部按钮上滑动时误关或抢点击
 // ============================================================
-let touchStartY = 0;
-document.getElementById('modalSheet').addEventListener('touchstart', e => {
-  touchStartY = e.touches[0].clientY;
-}, { passive: true });
-document.getElementById('modalSheet').addEventListener('touchmove', e => {
-  if (e.touches[0].clientY - touchStartY > 60) closeModal();
-}, { passive: true });
+(function () {
+  const swipeHandle = document.getElementById('modalSwipeHandle');
+  if (!swipeHandle) return;
+  let touchStartY = 0;
+  swipeHandle.addEventListener(
+    'touchstart',
+    function (e) {
+      touchStartY = e.touches[0].clientY;
+    },
+    { passive: true }
+  );
+  swipeHandle.addEventListener(
+    'touchmove',
+    function (e) {
+      if (e.touches[0].clientY - touchStartY > 60) closeModal();
+    },
+    { passive: true }
+  );
+})();
 
 // ============================================================
 //  启动

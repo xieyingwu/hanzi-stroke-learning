@@ -102,6 +102,61 @@ const HanziAdapter = (function () {
       });
   }
 
+  /**
+   * 首屏拉取 shard-map + 全部分片 JSON 并写入内存缓存，保证后续点字时笔顺数据立即可用。
+   * @param {string|URL|undefined} base - 与 getAppBaseUrl 一致
+   * @param {(ratio: number) => void} [onProgress] - 0～1
+   * @returns {Promise<{ ok: boolean, shardCount?: number, reason?: string }>}
+   */
+  function warmStrokePacksWithProgress(base, onProgress) {
+    var b = base || getBase();
+    if (typeof onProgress === 'function') onProgress(0);
+    return fetchShardMap(b)
+      .then(function (map) {
+        if (!map || typeof map !== 'object') {
+          if (typeof onProgress === 'function') onProgress(1);
+          return { ok: false, reason: 'no_map' };
+        }
+        var seen = Object.create(null);
+        var k;
+        for (k in map) {
+          if (Object.prototype.hasOwnProperty.call(map, k)) {
+            seen[map[k]] = true;
+          }
+        }
+        var shardIds = Object.keys(seen)
+          .map(function (x) {
+            return parseInt(x, 10);
+          })
+          .filter(function (n) {
+            return !isNaN(n);
+          })
+          .sort(function (a, b) {
+            return a - b;
+          });
+        var total = 1 + shardIds.length;
+        var done = 1;
+        if (typeof onProgress === 'function') onProgress(done / total);
+        return Promise.all(
+          shardIds.map(function (sid) {
+            return loadShardPayload(b, sid).then(function (payload) {
+              done++;
+              if (typeof onProgress === 'function') onProgress(done / total);
+              return payload;
+            });
+          })
+        ).then(function () {
+          if (typeof onProgress === 'function') onProgress(1);
+          return { ok: true, shardCount: shardIds.length };
+        });
+      })
+      .catch(function (e) {
+        console.warn('笔顺包预热失败', e);
+        if (typeof onProgress === 'function') onProgress(1);
+        return { ok: false, reason: String(e) };
+      });
+  }
+
   function buildCharDataLoader() {
     return function (char, resolve, reject) {
       var base = getBase();
@@ -154,7 +209,7 @@ const HanziAdapter = (function () {
     });
   }
 
-  return { create, buildCharDataLoader };
+  return { create, buildCharDataLoader, warmStrokePacksWithProgress };
 })();
 
 window.HanziAdapter = HanziAdapter;
