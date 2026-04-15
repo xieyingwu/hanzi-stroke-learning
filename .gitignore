@@ -5,6 +5,9 @@ hanzi-data/
 node_modules/
 dist/
 
+# 沙盒/本机便携 Node（解压自 nodejs.org，勿提交）
+node-v*-darwin-*/
+
 # 系统文件
 .DS_Store
 Thumbs.db

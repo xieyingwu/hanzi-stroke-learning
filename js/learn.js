@@ -86,6 +86,9 @@ const state = {
   isAnimating:     false,
 };
 
+/** 弹层刚打开时，移动端仍会派发一次「幽灵 click」（原触摸点落在全屏遮罩上），会误触关闭；短时间内忽略遮罩关闭 */
+let modalOpenedAtMs = 0;
+
 
 // ============================================================
 //  初始化
@@ -214,6 +217,7 @@ function openChar(char) {
   setMascotMsg(`正在学"${char}"，${meta.meaning}，${meta.pinyin}，笔顺动画马上开始！`);
 
   // 先展示弹层
+  modalOpenedAtMs = Date.now();
   document.getElementById('modalOverlay').classList.add('active');
 
   // 自动朗读：须在用户点击的同步调用栈内触发 speechSynthesis，不能用 setTimeout，
@@ -447,7 +451,10 @@ function closeModal() {
   document.getElementById('modalOverlay').classList.remove('active');
 }
 function handleOverlayClick(e) {
-  if (e.target === document.getElementById('modalOverlay')) closeModal();
+  if (e.target !== document.getElementById('modalOverlay')) return;
+  // grid 用 pointerup 打开弹层后，浏览器仍会合成 click 落在遮罩上，勿当作「点击空白关闭」
+  if (Date.now() - modalOpenedAtMs < 500) return;
+  closeModal();
 }
 
 // ============================================================
