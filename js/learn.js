@@ -444,6 +444,13 @@ function openChar(char) {
   const meta = HANZI_META[char];
   if (!meta) return;
 
+  if (document.body.classList.contains('stroke-assets-loading')) {
+    if (typeof showToast === 'function') {
+      showToast('⏳ 笔顺动画资源加载中，请稍候再点字…');
+    }
+    return;
+  }
+
   const loadSeq = ++charLoadSeq;
   clearAutoSpeakTimer();
 
