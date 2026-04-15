@@ -111,6 +111,9 @@ const state = {
 /** 弹层刚打开时，移动端仍会派发一次「幽灵 click」（原触摸点落在全屏遮罩上），会误触关闭；短时间内忽略遮罩关闭 */
 let modalOpenedAtMs = 0;
 
+/** 笔顺加载与弹层打开顺序：递增后可使进行中的 onLoad 回调失效 */
+let charLoadSeq = 0;
+
 /** 逐笔 animateStroke 链：暂停/关闭时递增，丢弃过期 onComplete */
 let strokeAnimSeq = 0;
 
@@ -118,22 +121,11 @@ let strokeAnimSeq = 0;
 // ============================================================
 //  初始化
 // ============================================================
-function preloadStrokeShardMap() {
-  if (typeof getAppBaseUrl !== 'function') return;
-  var base = getAppBaseUrl();
-  fetch(new URL('stroke-data/stroke-shard-map.json', base).href)
-    .then(function (r) {
-      if (r.ok) return r.json();
-    })
-    .then(function (m) {
-      if (m) window.__strokeShardMap = m;
-    })
-    .catch(function () {});
-}
-
 async function init() {
   await loadLearnData();
-  preloadStrokeShardMap();
+  if (typeof window.StrokeCache !== 'undefined' && typeof StrokeCache.prefetchStrokeAssets === 'function') {
+    StrokeCache.prefetchStrokeAssets(typeof getAppBaseUrl === 'function' ? getAppBaseUrl() : undefined);
+  }
   syncStateFromProgressStore();
   bindLearnDelegatedEvents();
   renderCategories();
@@ -361,6 +353,8 @@ function openChar(char) {
   const meta = HANZI_META[char];
   if (!meta) return;
 
+  const loadSeq = ++charLoadSeq;
+
   var act = ProgressStore.recordLearningActivity();
   state.streak = act.streak;
   updateStats();
@@ -371,7 +365,7 @@ function openChar(char) {
   state.currentStroke = -1;
   state.isAnimating  = false;
 
-  // 基础信息
+  // 基础信息（弹层在笔顺加载成功后再展示）
   document.getElementById('modalCharBig').textContent   = char;
   document.getElementById('modalPinyin').textContent    = meta.pinyin;
   document.getElementById('modalStrokeCount').textContent = '? 画';
@@ -392,9 +386,15 @@ function openChar(char) {
 
   setMascotMsg(`正在学"${char}"，${meta.meaning}，${meta.pinyin}，笔顺动画马上开始！`);
 
-  // 先展示弹层
-  modalOpenedAtMs = Date.now();
-  document.getElementById('modalOverlay').classList.add('active');
+  // 先全屏加载层，不打开学习弹层
+  const loadOverlay = document.getElementById('charLoadOverlay');
+  loadOverlay.classList.remove('char-load-overlay--error');
+  loadOverlay.setAttribute('aria-busy', 'true');
+  document.getElementById('charLoadChar').textContent = char;
+  document.getElementById('charLoadMsg').textContent = '正在加载笔顺数据…';
+  const charLoadSpinner = document.getElementById('charLoadSpinner');
+  if (charLoadSpinner) charLoadSpinner.style.display = '';
+  loadOverlay.classList.add('active');
 
   // 自动朗读：须在用户点击的同步调用栈内触发 speechSynthesis，不能用 setTimeout，
   // 否则 Safari / iOS 与部分 Chrome 会按「非用户手势」静默拦截，导致无声音。
@@ -409,30 +409,94 @@ function openChar(char) {
 
   // 延迟一帧再创建（等容器尺寸稳定）
   requestAnimationFrame(() => {
-    createWriter(char);
+    createWriter(char, loadSeq);
   });
+}
+
+/**
+ * 笔顺就绪后：先让学习弹层入场，再在下一帧关掉加载层（避免先关加载再开弹层时主界面闪一下）
+ */
+function revealCharModalAfterLoad() {
+  modalOpenedAtMs = Date.now();
+  document.getElementById('modalOverlay').classList.add('active');
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      const o = document.getElementById('charLoadOverlay');
+      o.classList.remove('active');
+      o.classList.remove('char-load-overlay--error');
+      o.setAttribute('aria-busy', 'false');
+    });
+  });
+}
+
+/** 加载中/失败时点击空白关闭 */
+function closeCharLoading() {
+  charLoadSeq++;
+  strokeAnimSeq++;
+  const overlay = document.getElementById('charLoadOverlay');
+  if (overlay) {
+    overlay.classList.remove('active');
+    overlay.classList.remove('char-load-overlay--error');
+    overlay.setAttribute('aria-busy', 'false');
+  }
+  const spin = document.getElementById('charLoadSpinner');
+  if (spin) spin.style.display = '';
+  const msg = document.getElementById('charLoadMsg');
+  if (msg) msg.textContent = '正在加载笔顺数据…';
+  if (state.writer) {
+    try { state.writer.cancelAnimation(); } catch (e) {}
+  }
+  state.writer = null;
+  state.writerReady = false;
+  state.isAnimating = false;
+  state.currentChar = null;
+  state.currentStroke = -1;
+  state.strokeCount = 0;
+  const container = document.getElementById('hanziWriterContainer');
+  if (container) container.innerHTML = '';
+  const dots = document.getElementById('strokeIndicators');
+  if (dots) dots.innerHTML = '';
+  const step = document.getElementById('strokeStep');
+  if (step) step.textContent = '';
+  const playBtn = document.getElementById('playBtn');
+  if (playBtn) playBtn.textContent = '▶ 播放';
+}
+
+function handleCharLoadOverlayClick(e) {
+  if (e.target === document.getElementById('charLoadOverlay')) {
+    closeCharLoading();
+  }
 }
 
 // ============================================================
 //  创建 Hanzi Writer 实例
 // ============================================================
-function createWriter(char) {
+function createWriter(char, loadSeq) {
   const container = document.getElementById('hanziWriterContainer');
   container.style.width  = '220px';
   container.style.height = '220px';
 
   state.writer = HanziAdapter.create('hanziWriterContainer', char, {
     onLoadCharDataSuccess: function(data) {
+      if (loadSeq !== charLoadSeq) return;
       state.writerReady = true;
       state.strokeCount = data.strokes.length;
       document.getElementById('modalStrokeCount').textContent = data.strokes.length + ' 画';
       document.getElementById('loadingHint').style.display = 'none';
       renderStrokeDots(data.strokes.length);
 
+      revealCharModalAfterLoad();
       setTimeout(function () { doPlay(); }, 300);
     },
     onLoadCharDataError: function() {
+      if (loadSeq !== charLoadSeq) return;
       document.getElementById('loadingHint').textContent = '笔顺数据加载失败，请检查网络';
+      const overlay = document.getElementById('charLoadOverlay');
+      overlay.classList.add('char-load-overlay--error');
+      document.getElementById('charLoadMsg').textContent = '笔顺数据加载失败，请检查网络后重试';
+      overlay.setAttribute('aria-busy', 'false');
+      const spin = document.getElementById('charLoadSpinner');
+      if (spin) spin.style.display = 'none';
     }
   });
 }
@@ -639,6 +703,12 @@ function closeModal() {
     window.speechSynthesis && window.speechSynthesis.cancel();
   }
   document.getElementById('modalOverlay').classList.remove('active');
+  const loadOv = document.getElementById('charLoadOverlay');
+  if (loadOv && loadOv.classList.contains('active')) {
+    loadOv.classList.remove('active');
+    loadOv.classList.remove('char-load-overlay--error');
+    loadOv.setAttribute('aria-busy', 'false');
+  }
 }
 function handleOverlayClick(e) {
   if (e.target !== document.getElementById('modalOverlay')) return;

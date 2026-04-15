@@ -193,6 +193,10 @@
         <span class="info-label">🎯 每日学习目标</span>
         <span><span class="info-value" id="infoDailyGoal">10 个/天</span><span class="info-arrow">›</span></span>
       </div>
+      <div class="info-row" onclick="openStrokeAnimModal()">
+        <span class="info-label">🎬 笔顺动画速度</span>
+        <span><span class="info-value" id="infoStrokeAnimSpeed">中速（0.8 秒）</span><span class="info-arrow">›</span></span>
+      </div>
       <button class="btn-logout" onclick="handleLogout()">🚪 退出登录</button>
     </div>
   </div>
@@ -221,6 +225,20 @@
       <button type="button" class="gender-option-btn" data-gender="女" onclick="saveGender('女')">女</button>
     </div>
     <button type="button" class="btn-cancel-full" onclick="closeGenderModal()">取消</button>
+  </div>
+</div>
+
+<!-- ===== 我的 - 笔顺动画速度 ===== -->
+<div class="me-modal-overlay" id="strokeAnimModalOverlay">
+  <div class="me-modal-box me-modal-box--sm" role="dialog" aria-modal="true">
+    <div class="edit-title">笔顺动画速度</div>
+    <p class="stroke-anim-hint">设置每一笔之间的间隔；打开学习页后点选汉字时按此速度播放。</p>
+    <div class="gender-options gender-options--stack">
+      <button type="button" class="gender-option-btn" onclick="saveStrokeAnimSpeed('slow')">慢速（1 秒）</button>
+      <button type="button" class="gender-option-btn" onclick="saveStrokeAnimSpeed('medium')">中速（0.8 秒）</button>
+      <button type="button" class="gender-option-btn" onclick="saveStrokeAnimSpeed('fast')">快速（0.5 秒）</button>
+    </div>
+    <button type="button" class="btn-cancel-full" onclick="closeStrokeAnimModal()">取消</button>
   </div>
 </div>
 
@@ -329,6 +347,16 @@
   </div>
 </div>
 
+<!-- ===== 笔顺数据加载中（先于学习弹层；成功后再打开弹层） ===== -->
+<div class="char-load-overlay" id="charLoadOverlay" onclick="handleCharLoadOverlayClick(event)" role="dialog" aria-modal="true" aria-busy="true" aria-labelledby="charLoadMsg">
+  <div class="char-load-card" onclick="event.stopPropagation()">
+    <div class="char-load-char" id="charLoadChar">字</div>
+    <div class="char-load-spinner" id="charLoadSpinner" aria-hidden="true"></div>
+    <p class="char-load-msg" id="charLoadMsg">正在加载笔顺数据…</p>
+    <p class="char-load-hint" id="charLoadHint">点击空白处关闭</p>
+  </div>
+</div>
+
 <!-- ===== 学习弹层 ===== -->
 <div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
   <div class="modal-sheet" id="modalSheet">
@@ -401,6 +429,7 @@
 <!-- 脚本（顺序重要） -->
 <script src="js/progressStore.js"></script>
 <script src="js/urlBase.js"></script>
+<script src="js/stroke-cache.js"></script>
 <script src="js/hanzi-adapter.js"></script>
 <script src="js/voice.js"></script>
 <script src="js/learn.js"></script>

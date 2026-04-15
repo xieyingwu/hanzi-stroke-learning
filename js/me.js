@@ -5,6 +5,31 @@ const ME_STORAGE_KEY = 'hanzi_user';
 const BIO_MAX_LEN = 100;
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 
+/** 笔顺播放：笔画间隔（delayBetweenStrokes，ms）+ 单笔书写倍率（strokeAnimationSpeed，越小越慢） */
+const STROKE_SPEED_PRESETS = {
+  fast: { delayBetweenStrokes: 500, strokeAnimationSpeed: 0.65 },
+  medium: { delayBetweenStrokes: 800, strokeAnimationSpeed: 0.5 },
+  slow: { delayBetweenStrokes: 1000, strokeAnimationSpeed: 0.4 },
+};
+const STROKE_SPEED_LABEL = {
+  fast: '快速（0.5 秒）',
+  medium: '中速（0.8 秒）',
+  slow: '慢速（1 秒）',
+};
+
+/** 供 HanziAdapter 创建 Writer 时读取（未登录则中速） */
+function getStrokeAnimWriterOptions() {
+  var u = getUserData();
+  var key = u && u.strokeAnimSpeed ? u.strokeAnimSpeed : 'medium';
+  if (!STROKE_SPEED_PRESETS[key]) key = 'medium';
+  var p = STROKE_SPEED_PRESETS[key];
+  return {
+    delayBetweenStrokes: p.delayBetweenStrokes,
+    strokeAnimationSpeed: p.strokeAnimationSpeed,
+  };
+}
+window.getStrokeAnimWriterOptions = getStrokeAnimWriterOptions;
+
 function getUserData() {
   try {
     return JSON.parse(localStorage.getItem(ME_STORAGE_KEY)) || null;
@@ -76,6 +101,11 @@ function refreshMePage() {
     if (infoDaily && typeof getDailyLearnTarget === 'function') {
       infoDaily.textContent = getDailyLearnTarget() + ' 个/天';
     }
+    const infoStroke = document.getElementById('infoStrokeAnimSpeed');
+    if (infoStroke) {
+      var sk = user.strokeAnimSpeed && STROKE_SPEED_LABEL[user.strokeAnimSpeed] ? user.strokeAnimSpeed : 'medium';
+      infoStroke.textContent = STROKE_SPEED_LABEL[sk];
+    }
     const stars = ProgressStore.getStars();
     const learned = ProgressStore.getLearnedCount();
     const streakDays = ProgressStore.getStreak();
@@ -129,6 +159,7 @@ function handleLogin() {
     avatarUrl: '',
     joinDate: new Date().toISOString().split('T')[0],
     dailyLearnGoal: '',
+    strokeAnimSpeed: 'medium',
   };
   setUserData(user);
   document.getElementById('loginPassword').value = '';
@@ -414,7 +445,7 @@ function initBirthWheelScrollListeners() {
     'scroll',
     function () {
       clearTimeout(birthWheelYearT);
-      birthWheelYearT = setTimeout(handleBirthYearScroll, 90);
+      birthWheelYearT = setTimeout(handleBirthYearScroll, 50);
     },
     { passive: true }
   );
@@ -422,7 +453,7 @@ function initBirthWheelScrollListeners() {
     'scroll',
     function () {
       clearTimeout(birthWheelMonthT);
-      birthWheelMonthT = setTimeout(handleBirthMonthScroll, 90);
+      birthWheelMonthT = setTimeout(handleBirthMonthScroll, 50);
     },
     { passive: true }
   );
@@ -430,7 +461,7 @@ function initBirthWheelScrollListeners() {
     'scroll',
     function () {
       clearTimeout(birthWheelDayT);
-      birthWheelDayT = setTimeout(handleBirthDayScroll, 90);
+      birthWheelDayT = setTimeout(handleBirthDayScroll, 50);
     },
     { passive: true }
   );
@@ -564,6 +595,26 @@ function saveGender(g) {
   refreshMePage();
 }
 
+// --- 笔顺动画速度 ---
+function openStrokeAnimModal() {
+  document.getElementById('strokeAnimModalOverlay').classList.add('active');
+}
+
+function closeStrokeAnimModal() {
+  document.getElementById('strokeAnimModalOverlay').classList.remove('active');
+}
+
+function saveStrokeAnimSpeed(key) {
+  if (!STROKE_SPEED_PRESETS[key]) return;
+  const user = getUserData();
+  if (!user || !user.loggedIn) return;
+  user.strokeAnimSpeed = key;
+  setUserData(user);
+  closeStrokeAnimModal();
+  showToast('✅ 已保存');
+  refreshMePage();
+}
+
 // --- 个性签名 ---
 function openBioModal() {
   const user = getUserData();
@@ -666,7 +717,7 @@ function initDailyGoalWheelScroll() {
     'scroll',
     function () {
       clearTimeout(dailyGoalWheelSnapT);
-      dailyGoalWheelSnapT = setTimeout(snapDailyGoalWheel, 90);
+      dailyGoalWheelSnapT = setTimeout(snapDailyGoalWheel, 50);
     },
     { passive: true }
   );
@@ -719,6 +770,9 @@ document.getElementById('birthWheelOverlay').addEventListener('click', function 
 });
 document.getElementById('genderModalOverlay').addEventListener('click', function (e) {
   if (e.target === this) closeGenderModal();
+});
+document.getElementById('strokeAnimModalOverlay').addEventListener('click', function (e) {
+  if (e.target === this) closeStrokeAnimModal();
 });
 document.getElementById('bioModalOverlay').addEventListener('click', function (e) {
   if (e.target === this) closeBioModal();

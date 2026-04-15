@@ -6,6 +6,7 @@ import { defineConfig } from 'vite';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const dataDir = resolve(__dirname, 'data');
 const strokeDataDir = resolve(__dirname, 'stroke-data');
+const jsDir = resolve(__dirname, 'js');
 
 function serveProjectDataDir() {
   return {
@@ -47,6 +48,11 @@ function copyDataToDist() {
       if (existsSync(strokeDataDir)) {
         mkdirSync(strokeOut, { recursive: true });
         cpSync(strokeDataDir, strokeOut, { recursive: true });
+      }
+      const jsOut = join(__dirname, 'dist', 'js');
+      if (existsSync(jsDir)) {
+        mkdirSync(jsOut, { recursive: true });
+        cpSync(jsDir, jsOut, { recursive: true });
       }
     },
   };

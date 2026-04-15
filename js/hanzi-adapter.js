@@ -13,14 +13,22 @@ const HanziAdapter = (function () {
     return typeof getAppBaseUrl === 'function' ? getAppBaseUrl() : new URL('.', window.location.href);
   }
 
+  function fetchMapUrl(base) {
+    return new URL('stroke-data/stroke-shard-map.json', base).href;
+  }
+
   function fetchShardMap(base) {
     if (window.__strokeShardMap) return Promise.resolve(window.__strokeShardMap);
     if (mapLoadPromise) return mapLoadPromise;
-    mapLoadPromise = fetch(new URL('stroke-data/stroke-shard-map.json', base).href)
-      .then(function (r) {
-        if (!r.ok) return null;
-        return r.json();
-      })
+    var href = fetchMapUrl(base);
+    mapLoadPromise = (
+      window.StrokeCache && typeof StrokeCache.fetchJsonCached === 'function'
+        ? StrokeCache.fetchJsonCached(href)
+        : fetch(href).then(function (r) {
+            if (!r.ok) return null;
+            return r.json();
+          })
+    )
       .then(function (m) {
         if (m) window.__strokeShardMap = m;
         return m;
@@ -38,11 +46,14 @@ const HanziAdapter = (function () {
     if (shardInflight[shardId]) return shardInflight[shardId];
     var idStr = String(shardId).padStart(2, '0');
     var url = new URL('stroke-data/shards/' + idStr + '.json', base).href;
-    shardInflight[shardId] = fetch(url)
-      .then(function (r) {
-        if (!r.ok) throw new Error('shard ' + shardId);
-        return r.json();
-      })
+    var loadPromise =
+      window.StrokeCache && typeof StrokeCache.fetchJsonCached === 'function'
+        ? StrokeCache.fetchJsonCached(url)
+        : fetch(url).then(function (r) {
+            if (!r.ok) throw new Error('shard ' + shardId);
+            return r.json();
+          });
+    shardInflight[shardId] = loadPromise
       .then(function (data) {
         shardPayloadCache[shardId] = data;
         delete shardInflight[shardId];
@@ -62,12 +73,17 @@ const HanziAdapter = (function () {
       'https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0/' +
       encodeURIComponent(char) +
       '.json';
-    fetch(localUrl)
+    var fetchLocal =
+      window.StrokeCache && typeof StrokeCache.fetchWithCache === 'function'
+        ? StrokeCache.fetchWithCache
+        : fetch.bind(window);
+    fetchLocal(localUrl)
       .then(function (r) {
         if (!r.ok) throw new Error('local miss');
         return r.json();
       })
       .catch(function () {
+        /* CDN 单字保持原生 fetch，避免跨域 opaque 响应无法读 JSON / 写入 Cache */
         return fetch(cdnUrl).then(function (r) {
           if (!r.ok) throw new Error('HTTP ' + r.status);
           return r.json();
@@ -113,6 +129,10 @@ const HanziAdapter = (function () {
    * @param {object} handlers - { onLoadCharDataSuccess, onLoadCharDataError }
    */
   function create(containerId, char, handlers) {
+    var speedOpts =
+      typeof getStrokeAnimWriterOptions === 'function'
+        ? getStrokeAnimWriterOptions()
+        : { delayBetweenStrokes: 800, strokeAnimationSpeed: 0.5 };
     return HanziWriter.create(containerId, char, {
       width: 220,
       height: 220,
@@ -123,9 +143,8 @@ const HanziAdapter = (function () {
       radicalColor: '#3A3A5C',
       highlightColor: '#FF5A5F',
       showCharacter: false,
-      /* 略慢于默认：倍率<1 放慢单笔书写；笔画间停顿略增，便于跟读 */
-      strokeAnimationSpeed: 0.65,
-      delayBetweenStrokes: 550,
+      strokeAnimationSpeed: speedOpts.strokeAnimationSpeed,
+      delayBetweenStrokes: speedOpts.delayBetweenStrokes,
       charDataLoader: buildCharDataLoader(),
       onLoadCharDataSuccess: handlers.onLoadCharDataSuccess,
       onLoadCharDataError: handlers.onLoadCharDataError,

@@ -11,8 +11,10 @@
 .me-login {
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; min-height: 60vh;
-  padding: 40px max(16px, env(safe-area-inset-left)) 40px max(16px, env(safe-area-inset-right));
-  width: 100%; max-width: 100vw; box-sizing: border-box;
+  /* padding-inline：左 = safe-area-left，右 = safe-area-right（勿与左右 safe-area 对调） */
+  padding-block: 40px;
+  padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
+  width: 100%; max-width: 100%; box-sizing: border-box;
 }
 .me-login .login-avatar {
   width: 100px; height: 100px; border-radius: 50%;
@@ -28,8 +30,17 @@
   font-size: 14px; color: var(--mid); margin-bottom: 28px;
 }
 .me-login .login-form {
-  width: 100%; max-width: min(320px, 100%);
+  width: 100%;
+  max-width: min(320px, 100%);
   min-width: 0;
+  box-sizing: border-box;
+  margin-inline: auto;
+  padding-inline: 0;
+}
+.me-login .login-form .form-group,
+.me-login .login-form .form-input {
+  box-sizing: border-box;
+  max-width: 100%;
 }
 .login-remember {
   display: flex; align-items: flex-start; gap: 10px;
@@ -53,6 +64,7 @@
   border-radius: 14px; font-size: 16px; font-weight: 600;
   color: var(--dark); background: white; outline: none;
   transition: border-color 0.2s;
+  box-sizing: border-box;
 }
 .form-textarea {
   display: block;
@@ -317,9 +329,12 @@
   height: 220px;
   overflow-y: auto;
   overflow-x: hidden;
-  scroll-snap-type: y mandatory;
+  /* proximity：快速滑动更顺；停住后仍可对齐选中行 */
+  scroll-snap-type: y proximity;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
 }
 .birth-wheel-scroll::-webkit-scrollbar { display: none; }
 .birth-wheel-scroll-inner {
@@ -335,7 +350,8 @@
   font-weight: 600;
   color: var(--mid);
   scroll-snap-align: center;
-  scroll-snap-stop: always;
+  /* normal：长列表快速滑动时不必在每一格强制停顿 */
+  scroll-snap-stop: normal;
 }
 .birth-wheel-item.is-current {
   color: var(--dark);
@@ -369,12 +385,11 @@
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
-}
-#editModalOverlay #editInput:placeholder-shown {
   text-align: center;
 }
-#editModalOverlay #editInput:not(:placeholder-shown) {
-  text-align: left;
+/* 退出登录：密码确认弹窗输入居中 */
+#logoutPasswordOverlay #logoutPasswordInput {
+  text-align: center;
 }
 #editModalOverlay .edit-actions {
   margin-left: 12px;
@@ -398,6 +413,18 @@
 }
 .gender-options {
   display: flex; gap: 12px; margin-bottom: 16px;
+}
+.gender-options--stack {
+  flex-direction: column;
+  gap: 10px;
+}
+.stroke-anim-hint {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--mid);
+  font-weight: 600;
+  margin: -4px 0 14px;
+  text-align: center;
 }
 .gender-option-btn {
   flex: 1; padding: 16px; border: 2px solid #E8E8F0; border-radius: 16px;
