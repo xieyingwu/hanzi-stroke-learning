@@ -54,7 +54,10 @@ const HanziAdapter = (function () {
     var href = fetchMapUrl(base);
     mapLoadPromise = (
       window.StrokeCache && typeof StrokeCache.fetchJsonCached === 'function'
-        ? StrokeCache.fetchJsonCached(href)
+        ? StrokeCache.fetchJsonCached(href).catch(function () {
+            /* 与下方 plain fetch 一致：404/网络失败视为无 map，预热走 no_map，学习走 CDN */
+            return null;
+          })
         : fetch(href).then(function (r) {
             if (!r.ok) return null;
             return r.json();

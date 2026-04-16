@@ -21,79 +21,99 @@ function syncStateFromProgressStore() {
   state.streak = p.streak;
 }
 
+/**
+ * 仅在「轻触、未滑动」时触发：pointerdown/up 间位移超过阈值则视为滚动/扫动，不触发。
+ * pointer 成功触发后抑制紧随的 click，避免重复；无 Pointer API 时退回 click。
+ * 与 Voice：openChar 仍可在 pointer 手势内调用，满足用户手势。
+ */
+function bindTapOnlyActivate(container, selector, onActivate) {
+  if (!container || container._tapActivateBound) return;
+  container._tapActivateBound = true;
+  var MOVE_PX = 12;
+  var pointerState = { active: false, id: null, x: 0, y: 0, moved: false, el: null };
+  var usePointer = typeof window.PointerEvent !== "undefined";
+
+  if (!usePointer) {
+    container.addEventListener("click", function (e) {
+      var el = e.target.closest(selector);
+      if (!el) return;
+      onActivate(e, el);
+    });
+    return;
+  }
+
+  container.addEventListener("pointerdown", function (e) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    var el = e.target.closest(selector);
+    if (!el) return;
+    pointerState.active = true;
+    pointerState.id = e.pointerId;
+    pointerState.x = e.clientX;
+    pointerState.y = e.clientY;
+    pointerState.moved = false;
+    pointerState.el = el;
+  });
+  container.addEventListener("pointermove", function (e) {
+    if (!pointerState.active || e.pointerId !== pointerState.id) return;
+    if (Math.hypot(e.clientX - pointerState.x, e.clientY - pointerState.y) >= MOVE_PX) {
+      pointerState.moved = true;
+    }
+  });
+  container.addEventListener("pointercancel", function (e) {
+    if (e.pointerId !== pointerState.id) return;
+    pointerState.active = false;
+    pointerState.moved = true;
+  });
+  var openedViaPointer = false;
+  container.addEventListener("pointerup", function (e) {
+    if (!pointerState.active || e.pointerId !== pointerState.id) return;
+    var moved = pointerState.moved;
+    pointerState.active = false;
+    pointerState.moved = false;
+    if (moved) return;
+    var el = e.target.closest(selector);
+    if (!el || el !== pointerState.el) return;
+    openedViaPointer = true;
+    onActivate(e, el);
+  });
+  container.addEventListener("click", function (e) {
+    if (openedViaPointer) {
+      openedViaPointer = false;
+      return;
+    }
+    var el = e.target.closest(selector);
+    if (!el) return;
+    onActivate(e, el);
+  });
+}
+
 function bindLearnDelegatedEvents() {
   var catList = document.getElementById("categoryList");
   var grid = document.getElementById("hanziGrid");
-  // 移动端（尤其 iOS Safari）在 touch 后约 300ms 才触发 click，语音合成不再视为用户手势会静音。
-  // 使用 pointerup：手指抬起时仍在同一次手势内，与 Voice.speakChar 同步调用配套。
-  var usePointer = typeof window.PointerEvent !== "undefined";
 
-  if (catList && !catList._delegBound) {
-    catList._delegBound = true;
-    function onCat(e) {
-      var btn = e.target.closest("[data-cat-id]");
-      if (!btn) return;
-      e.preventDefault();
-      selectCategory(btn.getAttribute("data-cat-id"));
-    }
-    if (usePointer) {
-      catList.addEventListener("pointerup", function (e) {
-        if (e.pointerType === "mouse" && e.button !== 0) return;
-        onCat(e);
-      });
-    } else {
-      catList.addEventListener("click", onCat);
-    }
-  }
-  if (grid && !grid._delegBound) {
-    grid._delegBound = true;
-    var lastGridActivationTs = 0;
-    function openFromCard(e) {
-      var card = e.target.closest("[data-char]");
-      if (!card) return;
-      var now = Date.now();
-      if (now - lastGridActivationTs < 420) return;
-      lastGridActivationTs = now;
-      var raw = card.getAttribute("data-char") || "";
-      var ch = decodeURIComponent(raw);
-      openChar(ch);
-    }
-    if (usePointer) {
-      grid.addEventListener("pointerup", function (e) {
-        if (e.pointerType === "mouse" && e.button !== 0) return;
-        openFromCard(e);
-      });
-    }
-    grid.addEventListener("click", openFromCard);
-    grid.addEventListener(
-      "touchend",
-      function (e) {
-        openFromCard(e);
-      },
-      { passive: true }
-    );
-  }
+  bindTapOnlyActivate(catList, "[data-cat-id]", function (e, btn) {
+    e.preventDefault();
+    selectCategory(btn.getAttribute("data-cat-id"));
+  });
+
+  var lastGridActivationTs = 0;
+  bindTapOnlyActivate(grid, "[data-char]", function (e, card) {
+    var now = Date.now();
+    if (now - lastGridActivationTs < 420) return;
+    lastGridActivationTs = now;
+    var raw = card.getAttribute("data-char") || "";
+    var ch = decodeURIComponent(raw);
+    openChar(ch);
+  });
+
   var learnedSubRow = document.getElementById("learnedSubRow");
-  if (learnedSubRow && !learnedSubRow._delegBound) {
-    learnedSubRow._delegBound = true;
-    function onLearnedSub(e) {
-      var btn = e.target.closest("[data-learned-sub]");
-      if (!btn) return;
-      e.preventDefault();
-      state.learnedSub = btn.getAttribute("data-learned-sub") || "all";
-      renderCategories();
-      renderGrid();
-      updateStats();
-    }
-    if (usePointer) {
-      learnedSubRow.addEventListener("pointerup", function (e) {
-        if (e.pointerType === "mouse" && e.button !== 0) return;
-        onLearnedSub(e);
-      });
-    } else {
-      learnedSubRow.addEventListener("click", onLearnedSub);
-    }
-  }
+  bindTapOnlyActivate(learnedSubRow, "[data-learned-sub]", function (e, btn) {
+    e.preventDefault();
+    state.learnedSub = btn.getAttribute("data-learned-sub") || "all";
+    renderCategories();
+    renderGrid();
+    updateStats();
+  });
 }
 
 //  应用状态
@@ -280,7 +300,8 @@ function showStrokeAssetBarDone(warmResult) {
       typeof HanziAdapter !== 'undefined' &&
       typeof HanziAdapter.warmStrokePacksWithProgress === 'function' &&
       warmResult &&
-      warmResult.reason !== 'no_adapter';
+      warmResult.reason !== 'no_adapter' &&
+      warmResult.reason !== 'no_map';
     if (retryBtn) retryBtn.hidden = !canRetry;
     if (titleEl) titleEl.textContent = '⚠️ 笔顺资源未全部下载完成';
     if (subEl) {
